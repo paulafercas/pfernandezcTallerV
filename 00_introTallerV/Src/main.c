@@ -41,3 +41,7 @@ void suma(void){
 	resultado_1 = numero_1 + numero_2;
 
 }
+
+void suma1(uint8_t x, uint8_t y){
+	resultado_2 = x +y;
+}
