@@ -99,6 +99,23 @@
 //#define USART1_BASE_ADDR 		(APB2_BASE_ADDR + 0x1000U)
 //#define TIM1_BASE_ADDR 		(APB2_BASE_ADDR + 0x0000U)
 
+/*Posiciones de memoria para perifericos del APB1 */
+//#define PWR_BASE_ADDR 		(APB1_BASE_ADDR + 0x7000U)
+//#define I2C3_BASE_ADDR 		(APB1_BASE_ADDR + 0x5C00U)
+//#define I2C2_BASE_ADDR 		(APB1_BASE_ADDR + 0x5800U)
+//#define I2C1_BASE_ADDR 		(APB1_BASE_ADDR + 0x5400U)
+//#define USART2_BASE_ADDR 		(APB1_BASE_ADDR + 0x4400U)
+//#define I2Sext_BASE_ADDR 		(APB1_BASE_ADDR + 0x4000U)
+//#define SPI3_BASE_ADDR 		(APB1_BASE_ADDR + 0x3C00U)
+//#define SPI2_BASE_ADDR 		(APB1_BASE_ADDR + 0x3800U)
+//#define I2S2ext_BASE_ADDR 	(APB1_BASE_ADDR + 0x3400U)
+//#define IWDG_BASE_ADDR 		(APB1_BASE_ADDR +
+//#define _BASE_ADDR(APB1_BASE_ADDR +
+//#define _BASE_ADDR(APB1_BASE_ADDR +
+//#define _BASE_ADDR(APB1_BASE_ADDR +
+//#define _BASE_ADDR(APB1_BASE_ADDR +
+//#define _BASE_ADDR(APB1_BASE_ADDR +
+//#define _BASE_ADDR(APB1_BASE_ADDR +
 
 
 int main(void)
