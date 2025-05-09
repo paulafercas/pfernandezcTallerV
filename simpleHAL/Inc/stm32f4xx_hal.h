@@ -109,15 +109,76 @@
 //#define SPI3_BASE_ADDR 		(APB1_BASE_ADDR + 0x3C00U)
 //#define SPI2_BASE_ADDR 		(APB1_BASE_ADDR + 0x3800U)
 //#define I2S2ext_BASE_ADDR 	(APB1_BASE_ADDR + 0x3400U)
-//#define IWDG_BASE_ADDR 		(APB1_BASE_ADDR +
-//#define _BASE_ADDR(APB1_BASE_ADDR +
-//#define _BASE_ADDR(APB1_BASE_ADDR +
-//#define _BASE_ADDR(APB1_BASE_ADDR +
-//#define _BASE_ADDR(APB1_BASE_ADDR +
-//#define _BASE_ADDR(APB1_BASE_ADDR +
-//#define _BASE_ADDR(APB1_BASE_ADDR +
+//#define IWDG_BASE_ADDR 		(APB1_BASE_ADDR + 0x3000U)
+//#define WWDG_BASE_ADDR 		(APB1_BASE_ADDR + 0x2C00U)
+//#define RTC_BASE_ADDR 		(APB1_BASE_ADDR + 0x2800U)
+//#define TIM5_BASE_ADDR 		(APB1_BASE_ADDR + 0x0C00U)
+//#define TIM4_BASE_ADDR 		(APB1_BASE_ADDR + 0x0800U)
+//#define TIM3_BASE_ADDR 		(APB1_BASE_ADDR + 0x0400U)
+//#define TIM2_BASE_ADDR 		(APB1_BASE_ADDR + 0x0000U)
 
+/*
+ * Macros genéricos
+ */
 
+#define DISABLE			(0)
+#define ENABLE			(1)
+#define SET				ENABLE
+#define CLEAR			DISABLE
+#define RESET			DISABLE
+#define FLAG_SET		SET
+#define FLAG_RESET		RESET
+#define I2C_WRITE		(0)
+#define I2C_READ		(1)
+
+/* +++========= INICIO de la descripcion de los elementos que componen el periferico ========+++ */
+
+/*Definicion de la estructura de datos que representa a cada uno de los registros que componen el
+ * periferico RCC.
+ *
+ * Debido a los temas que se van a manejar en el curso, solo se deben definir los bits de los registros:
+ * 6. 3. 1 (RCC_CR) hasta el 6.3.12 (RCC_APB2ENR), 6.3.17 (RCC_BDCR) y 6.3.18 (RCC_CSR)
+ *
+ * NOTA: La posicion de memoria (offset) debe encajar perfectamente con la posicion de memoria indicada
+ * en la hoja de datos del equipo. Observe que los elementos "reservedx" tambien estan presentes alli.
+ */
+
+typedef struct
+{
+	volatile uint32_t CR; 			//CLock Control Register			ADDR_OFFSET:	0x00
+	volatile uint32_t PLLCFGR;  	//PLL Configuration Register    	ADDR_OFFSET:	0x04
+	volatile uint32_t CFGR;     	//Clock Configuration register  	ADDR_OFFSET:	0x08
+	volatile uint32_t CIR;      	//Clock Interrupt Register      	ADDR_OFFSET:	0x0C
+	volatile uint32_t AHB1RSTR; 	//AHB1 Peripheral reset register  	ADDR_OFFSET:	0x10
+	volatile uint32_t AHB2RSTR; 	//AHB2 peripheral reset register	ADDR_OFFSET:	0x14
+	volatile uint32_t reserved0;  	//reserved							ADDR_OFFSET:	0x18
+	volatile uint32_t  ADDR_OFFSET:
+	volatile uint32_t  ADDR_OFFSET:
+	volatile uint32_t  ADDR_OFFSET:
+	volatile uint32_t  ADDR_OFFSET:
+	volatile uint32_t  ADDR_OFFSET:
+	volatile uint32_t  ADDR_OFFSET:
+	volatile uint32_t  ADDR_OFFSET:
+	volatile uint32_t  ADDR_OFFSET:
+	volatile uint32_t  ADDR_OFFSET:
+	volatile uint32_t  ADDR_OFFSET:
+	volatile uint32_t  ADDR_OFFSET:
+	volatile uint32_t  ADDR_OFFSET:
+	volatile uint32_t  ADDR_OFFSET:
+	volatile uint32_t  ADDR_OFFSET:
+	volatile uint32_t  ADDR_OFFSET:
+	volatile uint32_t  ADDR_OFFSET:
+	volatile uint32_t  ADDR_OFFSET:
+	volatile uint32_t  ADDR_OFFSET:
+	volatile uint32_t  ADDR_OFFSET:
+	volatile uint32_t  ADDR_OFFSET:
+	volatile uint32_t  ADDR_OFFSET:
+	volatile uint32_t  ADDR_OFFSET:
+	volatile uint32_t  ADDR_OFFSET:
+	volatile uint32_t  ADDR_OFFSET:
+	volatile uint32_t  ADDR_OFFSET:
+	volatile uint32_t  ADDR_OFFSET:
+};
 int main(void)
 {
     /* Loop forever */
