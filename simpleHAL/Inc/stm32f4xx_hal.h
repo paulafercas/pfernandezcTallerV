@@ -145,43 +145,142 @@
 
 typedef struct
 {
-	volatile uint32_t CR; 			//CLock Control Register			ADDR_OFFSET:	0x00
-	volatile uint32_t PLLCFGR;  	//PLL Configuration Register    	ADDR_OFFSET:	0x04
-	volatile uint32_t CFGR;     	//Clock Configuration register  	ADDR_OFFSET:	0x08
-	volatile uint32_t CIR;      	//Clock Interrupt Register      	ADDR_OFFSET:	0x0C
-	volatile uint32_t AHB1RSTR; 	//AHB1 Peripheral reset register  	ADDR_OFFSET:	0x10
-	volatile uint32_t AHB2RSTR; 	//AHB2 peripheral reset register	ADDR_OFFSET:	0x14
-	volatile uint32_t reserved0;  	//reserved							ADDR_OFFSET:	0x18
-	volatile uint32_t  ADDR_OFFSET:
-	volatile uint32_t  ADDR_OFFSET:
-	volatile uint32_t  ADDR_OFFSET:
-	volatile uint32_t  ADDR_OFFSET:
-	volatile uint32_t  ADDR_OFFSET:
-	volatile uint32_t  ADDR_OFFSET:
-	volatile uint32_t  ADDR_OFFSET:
-	volatile uint32_t  ADDR_OFFSET:
-	volatile uint32_t  ADDR_OFFSET:
-	volatile uint32_t  ADDR_OFFSET:
-	volatile uint32_t  ADDR_OFFSET:
-	volatile uint32_t  ADDR_OFFSET:
-	volatile uint32_t  ADDR_OFFSET:
-	volatile uint32_t  ADDR_OFFSET:
-	volatile uint32_t  ADDR_OFFSET:
-	volatile uint32_t  ADDR_OFFSET:
-	volatile uint32_t  ADDR_OFFSET:
-	volatile uint32_t  ADDR_OFFSET:
-	volatile uint32_t  ADDR_OFFSET:
-	volatile uint32_t  ADDR_OFFSET:
-	volatile uint32_t  ADDR_OFFSET:
-	volatile uint32_t  ADDR_OFFSET:
-	volatile uint32_t  ADDR_OFFSET:
-	volatile uint32_t  ADDR_OFFSET:
-	volatile uint32_t  ADDR_OFFSET:
-	volatile uint32_t  ADDR_OFFSET:
-};
-int main(void)
+	volatile uint32_t CR; 			//CLock Control Register					ADDR_OFFSET:	0x00
+	volatile uint32_t PLLCFGR;  	//PLL Configuration Register    			ADDR_OFFSET:	0x04
+	volatile uint32_t CFGR;     	//Clock Configuration register  			ADDR_OFFSET:	0x08
+	volatile uint32_t CIR;      	//Clock Interrupt Register      			ADDR_OFFSET:	0x0C
+	volatile uint32_t AHB1RSTR; 	//AHB1 Peripheral reset register  			ADDR_OFFSET:	0x10
+	volatile uint32_t AHB2RSTR; 	//AHB2 peripheral reset register			ADDR_OFFSET:	0x14
+	volatile uint32_t reserved0;  	//reserved									ADDR_OFFSET:	0x18
+	volatile uint32_t reserved1; 	//reserved									ADDR_OFFSET:	0x1C
+	volatile uint32_t APB1RSTR;		//APB1 peripheral reset register    		ADDR_OFFSET:	0x20
+	volatile uint32_t APB2RSTR;		//APB2 peripheral reset register			ADDR_OFFSET:	0x24
+	volatile uint32_t reserved2; 	//reserved									ADDR_OFFSET:	0x28
+	volatile uint32_t reserved3; 	//reserved									ADDR_OFFSET:	0x2C
+	volatile uint32_t AHB1ENR; 		//AHB1 peripheral clock enable register		ADDR_OFFSET:	0x30
+	volatile uint32_t AHB2ENR; 		//AHB2 peripheral clock enable register		ADDR_OFFSET:	0x34
+	volatile uint32_t reserved4; 	//reserved									ADDR_OFFSET:	0x38
+	volatile uint32_t reserved5; 	//reserved									ADDR_OFFSET:	0x3C
+	volatile uint32_t APB1ENR; 		//APB1 peripheral clock enable register		ADDR_OFFSET:	0x40
+	volatile uint32_t APB2ENR; 		//APB2 peripheral clock enable register		ADDR_OFFSET:	0x44
+	volatile uint32_t reserved6; 	//reserved									ADDR_OFFSET:	0x48
+	volatile uint32_t reserved7; 	//reserved									ADDR_OFFSET:	0x4c
+	volatile uint32_t AHB1LPENR; 	//AHB1 clock enable low power register		ADDR_OFFSET:	0x50
+	volatile uint32_t AHB2LPENR; 	//AHB2 clock enable low power register		ADDR_OFFSET:	0x54
+	volatile uint32_t reserved8; 	//reserved									ADDR_OFFSET:	0x58
+	volatile uint32_t reserved9; 	//reserved									ADDR_OFFSET:	0x5C
+	volatile uint32_t APB1LPENR; 	//AHB1 clock enable low power register		ADDR_OFFSET:	0x60
+	volatile uint32_t APB2LPENR; 	//AHB2 clock enable low power register		ADDR_OFFSET:	0x64
+	volatile uint32_t reserved10; 	//reserved									ADDR_OFFSET:	0x68
+	volatile uint32_t reserved11; 	//reserved									ADDR_OFFSET:	0x6C
+	volatile uint32_t BDCR; 		//Backup domain control register			ADDR_OFFSET:	0x70
+	volatile uint32_t CSR; 			//Clock control & status register			ADDR_OFFSET:	0x74
+	volatile uint32_t reserved12; 	//reserved									ADDR_OFFSET:	0x78
+	volatile uint32_t reserved13; 	//reserved									ADDR_OFFSET:	0x7C
+	volatile uint32_t SSCGR;		//spread spectrum clock generation reg		ADDR_OFFSET:	0x80
+	volatile uint32_t PLLI2SCFGR; 	//PLLI2S configuration register				ADDR_OFFSET:	0x84
+	volatile uint32_t reserved14; 	//reserved									ADDR_OFFSET:	0x88
+	volatile uint32_t DCKCFGR; 		//Dedicated Clocks configuration			ADDR_OFFSET:	0x8C
+}RCC_RegDef_t;
+
+/*
+ * Hacemos como un "merge", en el cual ubicacmmos la estructura RCC_Regdef_t a apuntar a la poiscion de
+ * memoria correspondiente, de forma que cada variable dentro de la estructura coincide con cada uno
+ * de los SFR en la	 memoria del micro-controlador
+ */
+#define RCC					((RCC_RegDef_t *) RCC_BASE_ADDR)
+
+/* Descripcion bit a bit de cada uno de los registros del que componen al periferico RCC */
+/* 6.3.1 RCC_CR */
+/* 6.3.2 RCC_PLLCFGR */
+/* 6.3.3 RCC_CFGR */
+/* 6.3.4 RCC_CIR */
+/* 6.3.5 RCC_AHB1RSTR */
+/* 6.3.6 RCC_AHB2RSTR */
+/* 6.3.7 RCC_APB1RSTR */
+/* 6.3.8 RCC_APB2RSTR */
+
+/* 6.3.9 RCC_AHB1ENR */
+#define RCC_AHB1ENR_GPIOAEN			0
+#define RCC_AHB1ENR_GPIOBEN			1
+#define RCC_AHB1ENR_GPIOCEN			2
+#define RCC_AHB1ENR_GPIODEN			3
+#define RCC_AHB1ENR_GPIOEEN			4
+#define RCC_AHB1ENR_GPIOHEN			7
+#define RCC_AHB1ENR_CRCEN			12
+#define RCC_AHB1ENR_DMA1EN			21
+#define RCC_AHB1ENR_DMA2EN			22
+
+/* 6.3.10 RCC_AHB2ENR */
+/* 6.3.11 RCC_APB1ENR */
+/* 6.3.12 RCC_AHB2ENR */
+/* 6.3.17 RCC_BDCR */
+/* 6.3.18 RCC_CSR */
+
+/* ====== FIN de la descripcion de los elementos que componen el periferico ====== */
+
+/* ++++++ Posibles valores de las configuraciones */
+/* System CLock (main clock) possible options*/
+/* Microcontroller clock output 1 (MCO1) optionns */
+/* Microcontroller preescaler clock output1 (MCO1PRE) options */
+/* Microcontroller preescaler clock output1 (MCO1PRE) options */
+/* Microcontroller clos output 2 (MCO2) optiones */
+
+/* +++====== INICIO de la descripcion de los elementos que componen el periferico ========+++ */
+/* Definicion de la estructura de datos que representa a cada uno de los registros que componen el
+ * periferico GPIO.
+ *
+ * Debido a que el periferico GPIOx es muy simple, no es necesario crear la descripcion bit a bit
+ * de cada uno de loss registros que componen el dicho periferico, pero di es necesario comprendeer que
+ * hace cada registro, para poder cargar correctamente la configuracion.
+ *
+ */
+
+typedef struct
 {
-    /* Loop forever */
-	for(;;);
-}
+	volatile uint32_t MODER; 		//port mode register					ADDR_OFFET: 0x00
+	volatile uint32_t OTYPER;		//port output type register				ADDR_OFFET: 0x04
+	volatile uint32_t OSPEEDR;		//port output speed register			ADDR_OFFET: 0x08
+	volatile uint32_t PUPDR;		//port pull-up/pull-down register		ADDR_OFFET: 0x0C
+	volatile uint32_t IDR;			//port input data register				ADDR_OFFET: 0x10
+	volatile uint32_t ODR;			//port output data register				ADDR_OFFET: 0x14
+	volatile uint32_t BSRR;			//port bit set/reset register			ADDR_OFFET: 0x18
+	volatile uint32_t LCKR;			//port configuration lock register		ADDR_OFFET: 0x1C
+	volatile uint32_t AFRI [2];		//port alternate function registers, 	ADDR_OFFET: 0x20-0x24
+} GPIO_TypeDef;
+
+/* Creamos un objeto de la estructura definida y hacemos que quede ubicada exactamente sobre
+ * la posicion de memoria donde se encuentra en registro
+ * Debido a que son varios perifericos GPIOx, es necesario hacer la definicion para cada uno.
+ *
+ * Tener cuidado que cada elemento coincida con su respectiva direccion base.
+ * */
+#define GPIOA				((GPIO_TypeDef *) GPIOA_BASE_ADDR)
+#define GPIOB				((GPIO_TypeDef *) GPIOB_BASE_ADDR)
+#define GPIOC				((GPIO_TypeDef *) GPIOC_BASE_ADDR)
+#define GPIOD				((GPIO_TypeDef *) GPIOD_BASE_ADDR)
+#define GPIOE				((GPIO_TypeDef *) GPIOE_BASE_ADDR)
+#define GPIOH				((GPIO_TypeDef *) GPIOH_BASE_ADDR)
+
+/* For testing assert parameter. */
+#define IS_GPIO_ALL_INSTANCE (GPIOx) ((GPIOx == GPIOA) || \
+									  (GPIOx == GPIOB) || \
+									  (GPIOx == GPIOC) || \
+									  (GPIOx == GPIOD) || \
+									  (GPIOx == GPIOE) || \
+									  (GPIOx == GPIOH))
+
+/*
+typedef struct
+{
+	volatile uint32_t dummy; 		//Dummy Example register		ADDR_OFFSET: 	 0x00
+} DUMMY_RegDef_t;
+
+*/
+/* No es necesario hacer nada mas en este archivo, para este primer proyecto */
+
+/* Incluimos las librerias de cada periferico */
+
+#endif /* _STM32F4XX_HAL_ */
+
 
