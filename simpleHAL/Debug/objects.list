@@ -1,3 +1,4 @@
+"./Src/gpio_driver_hal.o"
 "./Src/main.o"
 "./Src/syscalls.o"
 "./Src/sysmem.o"
