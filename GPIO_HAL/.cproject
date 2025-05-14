@@ -151,6 +151,7 @@
 					</sourceEntries>
 				</configuration>
 			</storageModule>
+			<storageModule moduleId="org.eclipse.cdt.core.externalSettings"/>
 		</cconfiguration>
 	</storageModule>
 	<storageModule moduleId="org.eclipse.cdt.core.pathentry"/>
@@ -167,5 +168,13 @@
 		<scannerConfigBuildInfo instanceId="com.st.stm32cube.ide.mcu.gnu.managedbuild.config.exe.release.387286447;com.st.stm32cube.ide.mcu.gnu.managedbuild.config.exe.release.387286447.;com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.compiler.1930286368;com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.compiler.input.c.2018207353">
 			<autodiscovery enabled="false" problemReportingEnabled="true" selectedProfileId=""/>
 		</scannerConfigBuildInfo>
+	</storageModule>
+	<storageModule moduleId="refreshScope" versionNumber="2">
+		<configuration configurationName="Debug">
+			<resource resourceType="PROJECT" workspacePath="/GPIO_HAL"/>
+		</configuration>
+		<configuration configurationName="Release">
+			<resource resourceType="PROJECT" workspacePath="/GPIO_HAL"/>
+		</configuration>
 	</storageModule>
 </cproject>

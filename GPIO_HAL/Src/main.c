@@ -48,7 +48,10 @@ int main (void)
 
 
 	while(1){
-
+		gpio_WritePin(&userled, SET);
+		for(uint32_t i=0; i<4000000; i++){
+		}
+		gpio_WritePin(&userled, RESET);
 	}
 }
 

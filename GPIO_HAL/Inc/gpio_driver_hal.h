@@ -5,7 +5,7 @@
  *      Author: paula-fdez
  */
 
-//#ifndef GPIO_DRIVER_HAL_H_
+#ifndef GPIO_DRIVER_HAL_H_
 #define GPIO_DRIVER_HAL_H_
 
 #include <stdint.h>
@@ -164,4 +164,4 @@ void gpio_WritePin (GPIO_Handler_t *pPinHandler, uint8_t newState);
 void gpio_TooglePin (GPIO_Handler_t *pPinHanlder);
 uint32_t gpio_ReadPin (GPIO_Handler_t *pPinHandler);
 
-
+#endif

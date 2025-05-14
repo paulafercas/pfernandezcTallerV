@@ -198,20 +198,20 @@ void gpio_config_alternate_function(GPIO_Handler_t *pGPIOHandler){
 			auxPosition =4 *pGPIOHandler->pinConfig.GPIO_PinNumber;
 
 			//Limpiamos primero la posicion del reigstro que deseamos escribir a continuacion
-			pGPIOHandler->pGPIOx->AFRI[0] &= ~(0b1111 << auxPosition);
+			pGPIOHandler->pGPIOx->AFR[0] &= ~(0b1111 << auxPosition);
 
 			//Y escribimos el valor configurado en la posicion seleccionada
-			pGPIOHandler->pGPIOx->AFRI[0] |= (pGPIOHandler->pinConfig.GPIO_PinAltFunMode << auxPosition);
+			pGPIOHandler->pGPIOx->AFR[0] |= (pGPIOHandler->pinConfig.GPIO_PinAltFunMode << auxPosition);
 		}
 		else{
 			// Estamos en el registro AFRH, que controla los pines del PIN_8 al PIN_15
 			auxPosition = 4* (pGPIOHandler->pinConfig.GPIO_PinNumber -8);
 
 			//Limpiamos primero la posicion del registro que deseamos escribir a continuacion
-			pGPIOHandler->pGPIOx->AFRI[1] &= ~(0b1111 << auxPosition);
+			pGPIOHandler->pGPIOx->AFR[1] &= ~(0b1111 << auxPosition);
 
 			//Y escribimos el valor configurado en la posicion seleccionada
-			pGPIOHandler->pGPIOx->AFRI[1] |= (pGPIOHandler->pinConfig.GPIO_PinAltFunMode<< auxPosition);
+			pGPIOHandler->pGPIOx->AFR[1] |= (pGPIOHandler->pinConfig.GPIO_PinAltFunMode<< auxPosition);
 
 		}
 	}

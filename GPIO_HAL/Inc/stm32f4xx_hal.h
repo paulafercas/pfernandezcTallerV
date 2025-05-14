@@ -55,10 +55,10 @@
  * AHBx and APBx Bus Peripherals base addresses
  */
 
-#define APB1_BASE_ADDR 0x4000000U
-#define APB2_BASE_ADDR 0x4001000U
-#define AHB1_BASE_ADDR 0x4002000U
-#define AHB2_BASE_ADDR 0x5000000U
+#define APB1_BASE_ADDR 0x40000000U
+#define APB2_BASE_ADDR 0x40010000U
+#define AHB1_BASE_ADDR 0x40020000U
+#define AHB2_BASE_ADDR 0x50000000U
 
 /**
  * Y ahora debemos hacer lo mismo pero cada una de las posiciones de memoria de cada uno de los
@@ -73,10 +73,10 @@
 
 /*Posiciones de memoria para perifericos del AHB1 */
 #define DMA2_BASE_ADDR 			(AHB1_BASE_ADDR + 0x6400U)
-#define DMA1_BASE_ADDR 			(AHB1_BASE_ADDR + 0x600U)
+#define DMA1_BASE_ADDR 			(AHB1_BASE_ADDR + 0x6000U)
 #define FIR_BASE_ADDR 			(AHB1_BASE_ADDR + 0x3C00U) //Flash
 #define RCC_BASE_ADDR 			(AHB1_BASE_ADDR + 0x3800U)
-#define CRC_ASE_ADDR 			(AHB1_BASE_ADDR + 0x3000U)
+#define CRC_BASE_ADDR 			(AHB1_BASE_ADDR + 0x3000U)
 #define GPIOH_BASE_ADDR 		(AHB1_BASE_ADDR + 0x1C00U)
 #define GPIOE_BASE_ADDR 		(AHB1_BASE_ADDR + 0x1000U)
 #define GPIOD_BASE_ADDR 		(AHB1_BASE_ADDR + 0x0C00U)
@@ -246,7 +246,7 @@ typedef struct
 	volatile uint32_t ODR;			//port output data register				ADDR_OFFET: 0x14
 	volatile uint32_t BSRR;			//port bit set/reset register			ADDR_OFFET: 0x18
 	volatile uint32_t LCKR;			//port configuration lock register		ADDR_OFFET: 0x1C
-	volatile uint32_t AFRI [2];		//port alternate function registers, 	ADDR_OFFET: 0x20-0x24
+	volatile uint32_t AFR [2];		//port alternate function registers, 	ADDR_OFFET: 0x20-0x24
 } GPIO_TypeDef;
 
 /* Creamos un objeto de la estructura definida y hacemos que quede ubicada exactamente sobre
