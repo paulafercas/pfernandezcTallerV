@@ -1,13 +1,13 @@
 /**
- * *****************************************************************************
- * @file				:	main.c
- * @author				:	pfernandezc
- * @brief				:	Main program body
- * *****************************************************************************
-
+ ******************************************************************************
+ * @file           : main.c
+ * @author         : Paula Andrea Fernández
+ * @brief          : GPIO
+ ******************************************************************************
  */
+
 #include <stdint.h>
-#include "stm32f4xx_hal.h"
+#include "stm32f4xx.h"
 #include "stm32_assert.h"
 #include "gpio_driver_hal.h"
 
@@ -37,10 +37,10 @@ int main (void)
 
 
 	while(1){
-		gpio_WritePin(&userled, SET);
-		for(uint32_t i=0; i<4000000; i++){
+		gpio_TooglePin(&userled);
+		for(uint32_t j=0; j<200000; j++){
+
 		}
-		gpio_WritePin(&userled, RESET);
 	}
 }
 
