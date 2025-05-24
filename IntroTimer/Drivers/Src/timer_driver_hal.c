@@ -37,7 +37,7 @@ static void timer_config_interrupt (Timer_Handler_t *pTimerHandler);
  * el sistema global de interrupciones, activar la IRQ especifica y luego volver a encender
  * el sistema.
  *  */
-void timer_config (Timer_Handler_t *pTimerHandler){
+void timer_Config (Timer_Handler_t *pTimerHandler){
 	// Guardamos una referencia al periferico que estamos utilizando...
 	ptrTimerUsed = pTimerHandler -> pTIMx;
 
@@ -56,7 +56,7 @@ void timer_config (Timer_Handler_t *pTimerHandler){
 	timer_set_period(pTimerHandler);
 
 	/* 5. Configuramos la interrupcion. */
-	timer_config_interruot(pTimerHandler);
+	timer_config_interrupt(pTimerHandler);
 
 	/* x. Volvemos a activar las interrupciones del sistema */
 	__enable_irq();
@@ -88,7 +88,7 @@ void timer_enable_clock_peripheral (Timer_Handler_t *pTimerHandler){
  * El prescaler nos configura la velocidad a la que se incrementa el registro
  * CNT del Timer
  */
-void timer_prescaler(Timer_Handler_t *pTimerHandler){
+void timer_set_prescaler(Timer_Handler_t *pTimerHandler){
 
 	// Verificamos que el valor del prescaler es valido
 	assert_param (IS_TIMER_PRESC(pTimerHandler->TIMxConfig.TIMx_Prescaler));
@@ -106,7 +106,7 @@ void timer_prescaler(Timer_Handler_t *pTimerHandler){
 void timer_set_period(Timer_Handler_t *pTimerHandler){
 
 	// Verificamos que el valor que genera el periodo es valido
-	asser_param(IS_TIMER_PERIOD(pTimerHandler->TIMx_Config.TIMx_Prescaler));
+	assert_param(IS_TIMER_PERIOD(pTimerHandler->TIMx_Config.TIMx_Prescaler));
 
 	//Acá hace falta algo...
 
@@ -163,7 +163,7 @@ void timer_config_interrupt (Timer_Handler_t *pTimerHandler){
 
 		/* Desactivamos el canal del asistema NVIC para que lea la inetrrupcion*/
 		if (pTimerHandler->pTIMx == TIM2){
-			NIVC_DisableIRQ(TIM2_IRQn);
+			NVIC_DisableIRQ(TIM2_IRQn);
 		}
 		else if (pTimerHandler->pTIMx == TIM3){
 			NVIC_DisableIRQ(TIM3_IRQn);
