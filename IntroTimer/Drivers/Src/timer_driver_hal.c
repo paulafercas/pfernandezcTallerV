@@ -80,6 +80,12 @@ void timer_enable_clock_peripheral (Timer_Handler_t *pTimerHandler){
 		RCC->APB1ENR |= RCC_APB1ENR_TIM3EN;
 
 	}
+	else if (pTimerHandler->pTIMx == TIM4){
+		RCC->APB1ENR |= RCC_APB1ENR_TIM4EN;
+	}
+	else if (pTimerHandler->pTIMx == TIM5){
+			RCC->APB1ENR |= RCC_APB1ENR_TIM5EN;
+	}
 	else{
 		__NOP();
 	}
@@ -106,7 +112,7 @@ void timer_set_prescaler(Timer_Handler_t *pTimerHandler){
 void timer_set_period(Timer_Handler_t *pTimerHandler){
 
 	// Verificamos que el valor que genera el periodo es valido
-	assert_param(IS_TIMER_PERIOD(pTimerHandler->TIMx_Config.TIMx_Prescaler));
+	assert_param(IS_TIMER_PERIOD(pTimerHandler->TIMx_Config.TIMx_Period));
 
 	//Acá hace falta algo...
 

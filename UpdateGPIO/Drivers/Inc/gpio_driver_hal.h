@@ -61,7 +61,7 @@ enum
 /* 8.4.5 GPIOx_IDR (un bit por PIN) - este es el registro para leer el estado de un PIN */
 
 /* 8.4.6 GPIOx_ODR (un bit por PIN) - este es el registro para escribir el estado de un
- * PIN (1 o 0). ESte registro puede ser escrito y leido desde el sofware, pero no garantiza
+ * PIN (1 o 0). Este registro puede ser escrito y leido desde el sofware, pero no garantiza
  * uan escritura "atómica", por lo cual es preferible utilizar el registro BSRR */
 
 /*Definicion de los nombres de los pines */
@@ -158,7 +158,7 @@ typedef struct
 								 ((PULL) == GPIO_PUDR_PULLDOWN))
 
 
-/* Header definitions for thw "public functions" of gpio_driver_hal */
+/* Header definitions for the "public functions" of gpio_driver_hal */
 void gpio_Config (GPIO_Handler_t *pGPIOHandler);
 void gpio_WritePin (GPIO_Handler_t *pPinHandler, uint8_t newState);
 void gpio_TooglePin (GPIO_Handler_t *pPinHanlder);

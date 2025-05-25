@@ -246,7 +246,7 @@ uint32_t gpio_ReadPin (GPIO_Handler_t *pPinHandler){
 	//Creamos una variable auxiliar la cual luego retornaremos
 	uint32_t pinValue = 0;
 
-	//Cargamos el valor del registro IDR, desplazado a derecha tantas veces como la ubicacion
+	//Cargamos el valor del registro IDR, desplazado a la derecha tantas veces como la ubicacion
 	//del pin especifico
 	pinValue = (pPinHandler->pGPIOx->IDR << pPinHandler->pinConfig.GPIO_PinNumber);
 	pinValue = pinValue;
@@ -255,8 +255,7 @@ uint32_t gpio_ReadPin (GPIO_Handler_t *pPinHandler){
 }
 
 void gpio_TooglePin (GPIO_Handler_t *pPinHandler){
-	uint32_t pinValue = 0;
-	pinValue = (pPinHandler->pGPIOx->IDR << pPinHandler->pinConfig.GPIO_PinNumber);
-	pinValue = !pinValue;
+
 }
+
 

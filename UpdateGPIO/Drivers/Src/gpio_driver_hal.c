@@ -255,7 +255,11 @@ uint32_t gpio_ReadPin (GPIO_Handler_t *pPinHandler){
 }
 
 void gpio_TooglePin (GPIO_Handler_t *pPinHandler){
-	gpio_ReadPin (GPIO_Handler_t *pPinHandler);
-
+	//Creamos una mascara con un solo valor 1
+	uint32_t mask = 0b01;
+	//Modifico mi mascara de modo que me quede el valor de 1 en el pin que utilizo
+	mask = mask<< pPinHandler -> pinConfig.GPIO_PinNumber;
+	//Cambio el valor de mi pin en el registro ODR con un XOR
+	pPinHandler -> pGPIOx ->ODR ^= mask;
 }
 
