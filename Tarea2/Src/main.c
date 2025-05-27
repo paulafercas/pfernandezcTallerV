@@ -10,25 +10,36 @@
 #include "stm32_assert.h"
 #include "gpio_driver_hal.h"
 #include "timer_driver_hal.h"
+#include "exti_driver_hal.h"
 
+
+//Definimos una enumeracion con los diferentes estados que puede tener la maquina
 typedef enum{
-	refrescar =0,
+	refrescar,
 	cambiar_numero,
 	cambiar_tasa_refresco,
 }Estado;
 
-void maquinaEstados(Estado *actual);
+typedef enum{
+	unidad1 =0,
+	decena1,
+	centena1,
+	milUnidad1,
+}parteNumero;
+
+
+
+void maquinaEstados(Estado actual, uint8_t digito);
 
 //Creamos la variable donde vamos a guardar el numero que se va a mostrar en el display
 uint16_t numeroDisplay =0;
 
 //Inicializamos las variables que van a permitir separar el numeroDisplay en 4 partes
-uint16_t unidad = 0;
-uint16_t decena = 0;
-uint16_t centena = 0;
-uint16_t milUnidad = 0;
-uint16_t residuoCentena = 0;
-uint16_t residuoMil = 0;
+uint8_t unidad = 0;
+uint8_t decena = 0;
+uint8_t centena = 0;
+uint8_t milUnidad = 0;
+
 
 //Inicializamos la variable donde guardamos que digito queremos encender (0,1,2,3)
 uint8_t digito =0;
@@ -53,6 +64,11 @@ GPIO_Handler_t alimentacion3={0}; //PinA11
 
 Timer_Handler_t blinkTimer = {0};
 
+/*
+ * Declaramos la funciones que aparecerán próximamente
+ */
+int separacion_parte (parteNumero parte, uint16_t numeroDisplay);
+
 
 /*
  * The main function, where everything happens.
@@ -62,12 +78,11 @@ int main(void)
 	/*
 	 * Vamos a dividir el numeroDisplay en unidades, decenas, centenas y unidades de mil.
 	 */
-	uint16_t unidad = numeroDisplay%10;
-	uint16_t decena = ((numeroDisplay-unidad)/10)%10;
-	uint16_t residuoCentena = numeroDisplay%100;
-	uint16_t centena = ((numeroDisplay - residuoCentena)/100)%10;
-	uint16_t residuoMil = numeroDisplay%1000;
-	uint16_t milUnidad = (numeroDisplay-residuoMil)/1000;
+	unidad =  separacion_parte (unidad1, numeroDisplay);
+	decena = separacion_parte (decena1, numeroDisplay);
+	centena = separacion_parte (centena1, numeroDisplay);
+	milUnidad = separacion_parte (milUnidad1, numeroDisplay);
+
 
 	/*Configuramos lo pines que estamos utilizando*/
 	segmento1.pGPIOx							= GPIOD;
@@ -187,7 +202,11 @@ int main(void)
 	// Encendemos el Timer.
 	timer_SetState(&blinkTimer, TIMER_ON);
 
+	//Definimos la variable que va a gurdar el estado en el que se encuentra mi maquina de estados
 
+	Estado actual = actual;
+
+	maquinaEstados(actual,digito,unidad, decena, centena, milUnidad);
 
     /* Loop forever */
 	while(1){
@@ -203,8 +222,42 @@ int main(void)
 /*
  * Creamos la funcion que le indica a la maquina de estados que debe hacer para cada caso
  */
-void maquinaEstados(Estado *actual){
-	if (actual =refrescar){
+
+
+int separacion_parte (parteNumero parte, uint16_t numeroDisplay){
+	if (parte == unidad1){
+		uint8_t unidad = 0;
+		unidad = numeroDisplay%10;
+		return unidad;
+	}
+	else if (parte == decena1){
+		uint8_t unidad = 0;
+		uint8_t decena = 0;
+		unidad = numeroDisplay%10;
+		decena = ((numeroDisplay-unidad)/10)%10;
+		return decena;
+	}
+	else if (parte == centena1){
+		uint8_t residuoCentena = 0;
+		uint8_t centena = 0;
+		residuoCentena = numeroDisplay%100;
+		centena = ((numeroDisplay - residuoCentena)/100)%10;
+		return centena;
+	}
+	else if (parte == milUnidad1){
+		uint8_t residuoMil = 0;
+		residuoMil = numeroDisplay%1000;
+		uint8_t milUnidad = 0;
+		milUnidad = (numeroDisplay-residuoMil)/1000;
+		return milUnidad;
+	}
+	else {
+		__NOP();
+	}
+
+int maquinaEstados(Estado actual,uint8_t digito,uint8_t unidad, uint8_t decena, uint8_t centena, uint8_t milUnidad){
+	if (actual ==refrescar){
+
 		//Primero debemos cersiorarnos de que el digito que queremos encender no tenga un
 		//valor mayor a 3 (ya que solo tenemos 4 digitos)
 		if (digito ==4){
@@ -213,13 +266,15 @@ void maquinaEstados(Estado *actual){
 		else{
 			__NOP();
 		}
+		digito_encendido(digito,unidad, decena, centena, milUnidad);
+
 		//Llamamos a la funcion que nos indica qué pines deben estar encendidos en el digito
 		//que deseo mostrar
-		digito_encendido (digito);
 	}
+	return digito;
 }
 
-void digito_encendido(digito, unidad, decena, centena, milUnidad){
+void digito_encendido(uint8_t digito, uint8_t unidad,uint8_t decena, uint8_t centena, uint8_t milUnidad){
 	switch (digito){
 	//Caso en el cual queremos ver el numero en el digito de las unidades
 	case 0: {
@@ -252,7 +307,7 @@ void digito_encendido(digito, unidad, decena, centena, milUnidad){
 	}
 	}// Fin del Switch-case
 }
-void definir_numero (numero){
+void definir_numero (uint8_t numero){
 	if (numero == 0){
 
 		gpio_WritePin(&segmento1, RESET);
@@ -332,3 +387,6 @@ void assert_failed(uint8_t* file, uint32_t line){
 		// problems...
 	}
 }
+
+
+
