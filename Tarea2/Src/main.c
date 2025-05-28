@@ -303,6 +303,7 @@ void maquinaEstados(Estado actual,uint8_t digito,uint8_t unidad, uint8_t decena,
 uint8_t valor_digito (uint8_t digito){
 	if (digito==4){
 			digito -= 4;
+			return digito;
 		}
 		else{
 			__NOP();
