@@ -216,7 +216,7 @@ int main(void)
 
 	refreshTimer.pTIMx								=TIM3;
 	refreshTimer.TIMx_Config.TIMx_Prescaler			=16000; //Genera incrementos de 1 ms
-	refreshTimer.TIMx_Config.TIMx_Period			=20;  // De la mano con el prescaler,
+	refreshTimer.TIMx_Config.TIMx_Period			=1000;  // De la mano con el prescaler,
 	refreshTimer.TIMx_Config.TIMx_mode				= TIMER_UP_COUNTER;
 	refreshTimer.TIMx_Config.TIMx_InterruptEnable 	= TIMER_INT_ENABLE;
 
@@ -234,7 +234,6 @@ int main(void)
 
 
 	//Definimos la variable que va a gurdar el estado en el que se encuentra mi maquina de estados
-
 
 	maquinaEstados(refrescar,digito,unidad, decena, centena, milUnidad);
 
@@ -481,7 +480,7 @@ void timer2_Callback(void){
 }
 
 void timer3_Callback(void){
-	digito ++;
+	digito +=1;
 }
 /*
  * ESta funcion sirve para detectar problemas de parametros
