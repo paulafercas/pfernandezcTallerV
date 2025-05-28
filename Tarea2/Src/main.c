@@ -42,7 +42,7 @@ uint8_t milUnidad = 0;
 uint8_t digito =0;
 
 // Definimos un Pin de prueba
-GPIO_Handler_t userLed ={0}; //PinA5
+GPIO_Handler_t userLed ={0}; //PinH1
 
 //Definimos los pines que estamos utilizando para el display 7 segmentos
 GPIO_Handler_t segmento1={0}; //PinD2
@@ -180,12 +180,15 @@ int main(void)
 
 
 	/* Configuramos el pin */
-	userLed.pGPIOx								= GPIOA;
-	userLed.pinConfig.GPIO_PinNumber			= PIN_5;
+	userLed.pGPIOx								= GPIOH;
+	userLed.pinConfig.GPIO_PinNumber			= PIN_1;
 	userLed.pinConfig.GPIO_PinMode				= GPIO_MODE_OUT;
 	userLed.pinConfig.GPIO_PinOutputType		= GPIO_OTYPE_PUSHPULL;
 	userLed.pinConfig.GPIO_PinOutputSpeed		= GPIO_OSPEED_MEDIUM;
 	userLed.pinConfig.GPIO_PinPuPdControl		= GPIO_PUPDR_NOTHING;
+
+	gpio_WritePin (&segmento11, SET);
+	gpio_WritePin (&alimentacion3, SET);
 
 	/* Cargamos la configuracion en los registros que gobiernan el puerto*/
 	gpio_Config(&userLed);
@@ -200,7 +203,7 @@ int main(void)
 
 	refreshTimer.pTIMx								=TIM3;
 	refreshTimer.TIMx_Config.TIMx_Prescaler			=16000; //Genera incrementos de 1 ms
-	refreshTimer.TIMx_Config.TIMx_Period				=20;  // De la mano con el prescaler,
+	refreshTimer.TIMx_Config.TIMx_Period			=20;  // De la mano con el prescaler,
 	refreshTimer.TIMx_Config.TIMx_mode				= TIMER_UP_COUNTER;
 	refreshTimer.TIMx_Config.TIMx_InterruptEnable 	= TIMER_INT_ENABLE;
 
@@ -428,11 +431,11 @@ void definir_numero (uint8_t numero){
 
 }
 
-void Timer2_Callback(void){
+void timer2_Callback(void){
 	gpio_TooglePin(&userLed);
 }
 
-void Timer3_Callback(void){
+void timer3_Callback(void){
 	digito ++;
 }
 /*

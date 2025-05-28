@@ -214,20 +214,55 @@ void timer_SetState(Timer_Handler_t *pTimerHandler, uint8_t newState){
 
 
 /**/
-__attribute__((weak)) void Timer2_Callback(void){
+__attribute__((weak)) void timer2_Callback(void){
 	__NOP();
 }
 
+__attribute__((weak)) void timer3_Callback(void){
+	__NOP();
+}
+
+__attribute__((weak)) void timer4_Callback(void){
+	__NOP();
+}
+
+__attribute__((weak)) void timer5_Callback(void){
+	__NOP();
+}
 
 /* Esta es la funcion a la que apunta el sistema en el vector de interrupciones.
  * Se debe utilizar usando exactamente el mismo nombre definido en el vector de interrupciones.
  * Al hacerlo correctamente, el sistema apunta a esta funcion y cuando la interrupcion se lanza
  * el sistema inmediatamente salta a este lugar en la memoria */
+
 void TIM2_IRQHandler(void){
 	/* Limpiamos la bandera que indica que la interrupcion se ha generado*/
 	TIM2->SR &= ~TIM_SR_UIF;
 
 	/* Llamamos a la funcion que se debe encargar de hacer algo con esta interrupcion*/
-	Timer2_Callback();
+	timer2_Callback();
 
+}
+void TIM3_IRQHandler(void){
+	/* Limpiamos la bandera que indica que la interrupcion se ha generado*/
+	TIM3->SR &= ~TIM_SR_UIF;
+
+	/* Llamamos a la funcion que se debe encargar de hacer algo con esta interrupcion*/
+	timer3_Callback();
+}
+
+void TIM4_IRQHandler(void){
+	/* Limpiamos la bandera que indica que la interrupcion se ha generado*/
+	TIM4->SR &= ~TIM_SR_UIF;
+
+	/* Llamamos a la funcion que se debe encargar de hacer algo con esta interrupcion*/
+	timer4_Callback();
+}
+
+void TIM5_IRQHandler(void){
+	/* Limpiamos la bandera que indica que la interrupcion se ha generado*/
+	TIM5->SR &= ~TIM_SR_UIF;
+
+	/* Llamamos a la funcion que se debe encargar de hacer algo con esta interrupcion*/
+	timer5_Callback();
 }

@@ -22,8 +22,8 @@ Timer_Handler_t blinkTimer = {0};
 int main(void)
 {
 	/* Configuramos el pin */
-	userLed.pGPIOx								= GPIOA;
-	userLed.pinConfig.GPIO_PinNumber			= PIN_5;
+	userLed.pGPIOx								= GPIOH;
+	userLed.pinConfig.GPIO_PinNumber			= PIN_1;
 	userLed.pinConfig.GPIO_PinMode				= GPIO_MODE_OUT;
 	userLed.pinConfig.GPIO_PinOutputType		= GPIO_OTYPE_PUSHPULL;
 	userLed.pinConfig.GPIO_PinOutputSpeed		= GPIO_OSPEED_MEDIUM;
