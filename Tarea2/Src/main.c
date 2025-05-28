@@ -29,7 +29,7 @@ typedef enum{
 
 
 //Creamos la variable donde vamos a guardar el numero que se va a mostrar en el display
-uint16_t numeroDisplay =0;
+uint16_t numeroDisplay =1234;
 
 //Inicializamos las variables que van a permitir separar el numeroDisplay en 4 partes
 uint8_t unidad = 0;
@@ -187,8 +187,21 @@ int main(void)
 	userLed.pinConfig.GPIO_PinOutputSpeed		= GPIO_OSPEED_MEDIUM;
 	userLed.pinConfig.GPIO_PinPuPdControl		= GPIO_PUPDR_NOTHING;
 
-	gpio_WritePin (&segmento11, SET);
-	gpio_WritePin (&alimentacion3, SET);
+	/* Cargamos la configuracion en los registros que gorbiernan cada puerto*/
+
+	gpio_Config(&segmento1);
+	gpio_Config(&segmento2);
+	gpio_Config(&segmento3);
+	gpio_Config(&segmento4);
+	gpio_Config(&segmento5);
+	gpio_Config(&segmento7);
+	gpio_Config(&segmento10);
+	gpio_Config(&segmento11);
+	gpio_Config(&alimentacion0);
+	gpio_Config(&alimentacion1);
+	gpio_Config(&alimentacion2);
+	gpio_Config(&alimentacion3);
+
 
 	/* Cargamos la configuracion en los registros que gobiernan el puerto*/
 	gpio_Config(&userLed);
@@ -349,64 +362,93 @@ void definir_numero (uint8_t numero){
 		gpio_WritePin(&segmento1, RESET);
 		gpio_WritePin(&segmento2, RESET);
 		gpio_WritePin(&segmento4, RESET);
+		gpio_WritePin(&segmento5, SET);
 		gpio_WritePin(&segmento7, RESET);
 		gpio_WritePin(&segmento10, RESET);
 		gpio_WritePin(&segmento11, RESET);
+		gpio_WritePin(&segmento3, SET);
 		break;
 	}
 	case 1: {
+		gpio_WritePin(&segmento1, SET);
+		gpio_WritePin(&segmento2, SET);
+		gpio_WritePin(&segmento3, SET);
 		gpio_WritePin(&segmento4, RESET);
+		gpio_WritePin(&segmento5, SET);
 		gpio_WritePin(&segmento7, RESET);
+		gpio_WritePin(&segmento10, SET);
+		gpio_WritePin(&segmento11, SET);
 		break;
 	}
 	case 2: {
 		gpio_WritePin(&segmento1, RESET);
 		gpio_WritePin(&segmento2, RESET);
+		gpio_WritePin(&segmento3, SET);
+		gpio_WritePin(&segmento4, SET);
 		gpio_WritePin(&segmento5, RESET);
 		gpio_WritePin(&segmento7, RESET);
+		gpio_WritePin(&segmento10, SET);
 		gpio_WritePin(&segmento11, RESET);
 		break;
 	}
 	case 3: {
+		gpio_WritePin(&segmento1, SET);
 		gpio_WritePin(&segmento2, RESET);
+		gpio_WritePin(&segmento3, SET);
 		gpio_WritePin(&segmento5, RESET);
 		gpio_WritePin(&segmento4, RESET);
 		gpio_WritePin(&segmento7, RESET);
+		gpio_WritePin(&segmento10, SET);
 		gpio_WritePin(&segmento11, RESET);
 		break;
 	}
 	case 4: {
+		gpio_WritePin(&segmento1, SET);
+		gpio_WritePin(&segmento2, SET);
+		gpio_WritePin(&segmento3, SET);
 		gpio_WritePin(&segmento4, RESET);
 		gpio_WritePin(&segmento7, RESET);
 		gpio_WritePin(&segmento5, RESET);
 		gpio_WritePin(&segmento10, RESET);
+		gpio_WritePin(&segmento11, SET);
 		break;
 	}
 	case 5: {
+		gpio_WritePin(&segmento1, SET);
 		gpio_WritePin(&segmento2, RESET);
+		gpio_WritePin(&segmento3, SET);
 		gpio_WritePin(&segmento4, RESET);
 		gpio_WritePin(&segmento5, RESET);
+		gpio_WritePin(&segmento7, SET);
 		gpio_WritePin(&segmento10, RESET);
 		gpio_WritePin(&segmento11, RESET);
 		break;
 	}
 	case 6: {
+		gpio_WritePin(&segmento1, RESET);
 		gpio_WritePin(&segmento2, RESET);
+		gpio_WritePin(&segmento3, SET);
 		gpio_WritePin(&segmento4, RESET);
 		gpio_WritePin(&segmento5, RESET);
 		gpio_WritePin(&segmento10, RESET);
 		gpio_WritePin(&segmento11, RESET);
-		gpio_WritePin(&segmento1, RESET);
+		gpio_WritePin(&segmento7, SET);
 		break;
 	}
 	case 7: {
+		gpio_WritePin(&segmento1, SET);
+		gpio_WritePin(&segmento2, SET);
+		gpio_WritePin(&segmento3, SET);
 		gpio_WritePin(&segmento4, RESET);
+		gpio_WritePin(&segmento5, SET);
 		gpio_WritePin(&segmento7, RESET);
+		gpio_WritePin(&segmento10, SET);
 		gpio_WritePin(&segmento11, RESET);
 		break;
 	}
 	case 8: {
 		gpio_WritePin(&segmento2, RESET);
+		gpio_WritePin(&segmento3, SET);
 		gpio_WritePin(&segmento4, RESET);
 		gpio_WritePin(&segmento5, RESET);
 		gpio_WritePin(&segmento10, RESET);
@@ -416,6 +458,9 @@ void definir_numero (uint8_t numero){
 		break;
 	}
 	case 9: {
+		gpio_WritePin(&segmento1, SET);
+		gpio_WritePin(&segmento2, SET);
+		gpio_WritePin(&segmento3, SET);
 		gpio_WritePin(&segmento4, RESET);
 		gpio_WritePin(&segmento5, RESET);
 		gpio_WritePin(&segmento10, RESET);
