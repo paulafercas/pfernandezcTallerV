@@ -29,7 +29,7 @@ typedef enum{
 
 
 //Creamos la variable donde vamos a guardar el numero que se va a mostrar en el display
-uint16_t numeroDisplay =0;
+uint16_t numeroDisplay =1407;
 Estado actual = refrescar;
 
 //Inicializamos las variables que van a permitir separar el numeroDisplay en 4 partes
@@ -43,7 +43,7 @@ uint8_t milUnidad = 0;
 uint8_t digito = 0;
 
 // Definimos el Pin Blinky
-GPIO_Handler_t userLed ={0}; //PinH1
+GPIO_Handler_t blinky ={0}; //PinH1
 
 //Definimos los pines que estamos utilizando para el display 7 segmentos
 GPIO_Handler_t segmento1={0}; //PinD2
@@ -58,6 +58,20 @@ GPIO_Handler_t alimentacion0={0}; //PinC13
 GPIO_Handler_t alimentacion1={0}; //PinC5
 GPIO_Handler_t alimentacion2={0}; //PinC6
 GPIO_Handler_t alimentacion3={0}; //PinA11
+
+//Definimos los pines que estamos utilizando para los botones
+//y el encoder
+GPIO_Handler_t gpioCLK ={0}; //PinB8
+EXTI_Handler_t extiCLK = {0}; //EXTI del CLK
+GPIO_Handler_t gpioDT = {0}; //PinPC9
+EXTI_Handler_t extiDT ={0}; //EXTI del DT
+GPIO_Handler_t gpioSW ={0}; //PinF4
+EXTI_Handler_t extiSW ={0}; //EXTI del SW
+GPIO_Handler_t gpioAumentarRefresh = {0}; //PinB9
+EXTI_Handler_t extiAumentarRefresh ={0}; //EXTI del botonAumentarRefresh
+GPIO_Handler_t gpioDisminuirRefresh ={0}; //PinF1
+EXTI_Handler_t extiDisminuirRefresh ={0}; //EXTI del botonDisminuirRefresh
+
 
 //Definimos los timers
 Timer_Handler_t blinkTimer = {0};
@@ -75,15 +89,22 @@ void digito_encendido(uint8_t digito, uint8_t unidad,uint8_t decena, uint8_t cen
 //Funcion que se encuentra dentro de "digito_encendido" para definir que numero
 //quiero ver en cada digito
 void definir_numero (uint8_t numero);
-//Funcion para configurar los pines que usamos
-void configurarPines();
+//Funcion para configurar los pines del 7 segmentos
+void configurar7Segmentos();
+//Funcion para configurar el pin del Blinky
+void configurarTimers ();
+//Funcion que configura los pines para el EXTI
+void configurarExti ();
+
 
 /*
  * The main function, where everything happens.
  *  */
 int main(void)
 {
-	configurarPines();
+	configurar7Segmentos();
+	configurarTimers ();
+	configurarExti ();
 	/*
 	 * Vamos a dividir el numeroDisplay en unidades, decenas, centenas y unidades de mil.
 	 */
@@ -91,36 +112,6 @@ int main(void)
 	decena = separacion_parte (decena1, numeroDisplay);
 	centena = separacion_parte (centena1, numeroDisplay);
 	milUnidad = separacion_parte (milUnidad1, numeroDisplay);
-
-	/* Cargamos la configuracion en los registros que gobiernan los puertos
-	 * de cada Timer*/
-	gpio_Config(&userLed);
-
-	gpio_WritePin(&userLed,SET);
-
-	blinkTimer.pTIMx								=TIM2;
-	blinkTimer.TIMx_Config.TIMx_Prescaler			=16000; //Genera incrementos de 1 ms
-	blinkTimer.TIMx_Config.TIMx_Period				=250;  // De la mano con el prescaler,
-	blinkTimer.TIMx_Config.TIMx_mode				= TIMER_UP_COUNTER;
-	blinkTimer.TIMx_Config.TIMx_InterruptEnable 	= TIMER_INT_ENABLE;
-
-	refreshTimer.pTIMx								=TIM3;
-	refreshTimer.TIMx_Config.TIMx_Prescaler			=16000; //Genera incrementos de 1 ms
-	refreshTimer.TIMx_Config.TIMx_Period			=3;  // De la mano con el prescaler,
-	refreshTimer.TIMx_Config.TIMx_mode				= TIMER_UP_COUNTER;
-	refreshTimer.TIMx_Config.TIMx_InterruptEnable 	= TIMER_INT_ENABLE;
-
-	/* Configuramos el BlinkTimer */
-	timer_Config(&blinkTimer);
-
-	// Encendemos el BlinkTimer.
-	timer_SetState(&blinkTimer, TIMER_ON);
-
-	/* Configuramos el refreshTimer */
-	timer_Config(&refreshTimer);
-
-	// Encendemos el Timer.
-	timer_SetState(&refreshTimer, TIMER_ON);
 
     /* Loop forever */
 	while(1){
@@ -131,7 +122,7 @@ int main(void)
 /*
  * Funcion que configura los pines que estamos utilizando
  */
-void configurarPines (void){
+void configurar7Segmentos (void){
 
 	/*Configuramos lo pines que estamos utilizando*/
 		segmento1.pGPIOx							= GPIOD;
@@ -218,16 +209,6 @@ void configurarPines (void){
 		alimentacion3.pinConfig.GPIO_PinOutputSpeed		= GPIO_OSPEED_MEDIUM;
 		alimentacion3.pinConfig.GPIO_PinPuPdControl		= GPIO_PUPDR_NOTHING;
 
-
-
-		/* Configuramos el pin para el BLinky*/
-		userLed.pGPIOx								= GPIOH;
-		userLed.pinConfig.GPIO_PinNumber			= PIN_1;
-		userLed.pinConfig.GPIO_PinMode				= GPIO_MODE_OUT;
-		userLed.pinConfig.GPIO_PinOutputType		= GPIO_OTYPE_PUSHPULL;
-		userLed.pinConfig.GPIO_PinOutputSpeed		= GPIO_OSPEED_MEDIUM;
-		userLed.pinConfig.GPIO_PinPuPdControl		= GPIO_PUPDR_NOTHING;
-
 		/* Cargamos la configuracion en los registros que gorbiernan cada puerto*/
 
 		gpio_Config(&segmento1);
@@ -248,7 +229,7 @@ void configurarPines (void){
 		gpio_WritePin (&segmento2, RESET);
 		gpio_WritePin (&segmento3, SET);
 		gpio_WritePin (&segmento4, RESET);
-		gpio_WritePin (&segmento5, RESET);
+		gpio_WritePin (&segmento5, SET);
 		gpio_WritePin (&segmento7, RESET);
 		gpio_WritePin (&segmento10, RESET);
 		gpio_WritePin (&segmento11, RESET);
@@ -256,6 +237,73 @@ void configurarPines (void){
 		gpio_WritePin (&alimentacion1, SET);
 		gpio_WritePin (&alimentacion2, SET);
 		gpio_WritePin (&alimentacion3, SET);
+
+}
+void configurarTimers (void){
+
+	/* Configuramos el pin para el BLinky*/
+	blinky.pGPIOx							= GPIOH;
+	blinky.pinConfig.GPIO_PinNumber			= PIN_1;
+	blinky.pinConfig.GPIO_PinMode			= GPIO_MODE_OUT;
+	blinky.pinConfig.GPIO_PinOutputType		= GPIO_OTYPE_PUSHPULL;
+	blinky.pinConfig.GPIO_PinOutputSpeed	= GPIO_OSPEED_MEDIUM;
+	blinky.pinConfig.GPIO_PinPuPdControl	= GPIO_PUPDR_NOTHING;
+
+	/* Cargamos la configuracion en el pin que gobierna el puerto*/
+	gpio_Config(&blinky);
+
+	gpio_WritePin(&blinky,SET);
+
+	blinkTimer.pTIMx								=TIM2;
+	blinkTimer.TIMx_Config.TIMx_Prescaler			=16000; //Genera incrementos de 1 ms
+	blinkTimer.TIMx_Config.TIMx_Period				=250;  // De la mano con el prescaler,
+	blinkTimer.TIMx_Config.TIMx_mode				= TIMER_UP_COUNTER;
+	blinkTimer.TIMx_Config.TIMx_InterruptEnable 	= TIMER_INT_ENABLE;
+
+	refreshTimer.pTIMx								=TIM3;
+	refreshTimer.TIMx_Config.TIMx_Prescaler			=16000; //Genera incrementos de 1 ms
+	refreshTimer.TIMx_Config.TIMx_Period			=500;  // De la mano con el prescaler,
+	refreshTimer.TIMx_Config.TIMx_mode				= TIMER_UP_COUNTER;
+	refreshTimer.TIMx_Config.TIMx_InterruptEnable 	= TIMER_INT_ENABLE;
+
+	/* Configuramos el BlinkTimer */
+	timer_Config(&blinkTimer);
+
+	// Encendemos el BlinkTimer.
+	timer_SetState(&blinkTimer, TIMER_ON);
+
+	/* Configuramos el refreshTimer */
+	timer_Config(&refreshTimer);
+
+	// Encendemos el Timer.
+	timer_SetState(&refreshTimer, TIMER_ON);
+}
+
+void configurarExti (void){
+	gpioCLK.pGPIOx							= GPIOB;
+	gpioCLK.pinConfig.GPIO_PinNumber		= PIN_8;
+	gpioCLK.pinConfig.GPIO_PinMode			= GPIO_MODE_IN;
+	gpioCLK.pinConfig.GPIO_PinPuPdControl	= GPIO_PUPDR_NOTHING;
+
+	gpioDT.pGPIOx							= GPIOC;
+	gpioDT.pinConfig.GPIO_PinNumber			= PIN_9;
+	gpioDT.pinConfig.GPIO_PinMode			= GPIO_MODE_IN;
+	gpioDT.pinConfig.GPIO_PinPuPdControl	= GPIO_PUPDR_NOTHING;
+
+	gpioSW.pGPIOx							= GPIOC;
+	gpioSW.pinConfig.GPIO_PinNumber			= PIN_3;
+	gpioSW.pinConfig.GPIO_PinMode			= GPIO_MODE_IN;
+	gpioSW.pinConfig.GPIO_PinPuPdControl	= GPIO_PUPDR_NOTHING;
+
+	gpioAumentarRefresh.pGPIOx							= GPIOB;
+	gpioAumentarRefresh.pinConfig.GPIO_PinNumber		= PIN_9;
+	gpioAumentarRefresh.pinConfig.GPIO_PinMode			= GPIO_MODE_IN;
+	gpioAumentarRefresh.pinConfig.GPIO_PinPuPdControl	= GPIO_PUPDR_NOTHING;
+
+	gpioDisminuirRefresh.pGPIOx							= GPIOC;
+	gpioDisminuirRefresh.pinConfig.GPIO_PinNumber		= PIN_2;
+	gpioDisminuirRefresh.pinConfig.GPIO_PinMode			= GPIO_MODE_IN;
+	gpioDisminuirRefresh.pinConfig.GPIO_PinPuPdControl	= GPIO_PUPDR_NOTHING;
 
 }
 int separacion_parte (parteNumero parte, uint16_t numeroDisplay){
@@ -295,10 +343,10 @@ int separacion_parte (parteNumero parte, uint16_t numeroDisplay){
 void maquinaEstados(Estado actual,uint8_t digito,uint8_t unidad, uint8_t decena, uint8_t centena, uint8_t milUnidad){
 	if (actual ==refrescar){
 		//Apagamos todos los digitos
-		gpio_WritePin (&alimentacion3, RESET);
-		gpio_WritePin (&alimentacion1, RESET);
-		gpio_WritePin (&alimentacion2, RESET);
-		gpio_WritePin (&alimentacion0, RESET);
+		gpio_WritePin (&alimentacion3, SET);
+		gpio_WritePin (&alimentacion1, SET);
+		gpio_WritePin (&alimentacion2, SET);
+		gpio_WritePin (&alimentacion0, SET);
 		//Llamamos a la funcion que nos indica qué pines deben estar encendidos en el digito
 		//que deseo mostrar
 		digito_encendido(digito,unidad, decena, centena, milUnidad);
@@ -315,28 +363,28 @@ void digito_encendido(uint8_t digito, uint8_t unidad,uint8_t decena, uint8_t cen
 		//Encendemos los pines correspondientes al numero que se desea
 		definir_numero (unidad);
 		//Encedemos el digito (1) donde se va a mostrar el numero seleccionado anteriormente
-		gpio_WritePin (&alimentacion0, SET);
+		gpio_WritePin (&alimentacion0, RESET);
 		break;
 	}
 	case 1: {
 		//Encendemos los pines correspondientes al numero que se desea
 		definir_numero (decena);
 		//Encedemos el digito (1) donde se va a mostrar el numero seleccionado anteriormente
-		gpio_WritePin (&alimentacion1, SET);
+		gpio_WritePin (&alimentacion1, RESET);
 		break;
 	}
 	case 2:{
 		//Encendemos los pines correspondientes al numero que se desea
 		definir_numero (centena);
 		//Encedemos el digito (1) donde se va a mostrar el numero seleccionado anteriormente
-		gpio_WritePin (&alimentacion2, SET);
+		gpio_WritePin (&alimentacion2, RESET);
 		break;
 	}
 	case 3:{
 		//Encendemos los pines correspondientes al numero que se desea
 		definir_numero (milUnidad);
 		//Encedemos el digito (1) donde se va a mostrar el numero seleccionado anteriormente
-		gpio_WritePin (&alimentacion3, SET);
+		gpio_WritePin (&alimentacion3, RESET);
 		break;
 	}
 	default:{
@@ -471,7 +519,7 @@ void definir_numero (uint8_t numero){
  * Timer que controla el blinky
  */
 void timer2_Callback(void){
-	gpio_TooglePin(&userLed);
+	gpio_TooglePin(&blinky);
 }
 /*
  * Timer que controla el refresh

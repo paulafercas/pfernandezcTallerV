@@ -10,9 +10,9 @@
 
 /* === Headers for private functions === */
 static void exti_enable_clock_peripheral(void);
-static void exti_assign_channel(EXTI_Config_t *extiConfig);
-static void exti_select_edge(EXTI_Config_t *extiConfig);
-static void exti_config_interrupt(EXTI_Config_t *extiConfig);
+static void exti_assign_channel(EXTI_Handler_t *extiConfig);
+static void exti_select_edge(EXTI_Handler_t *extiConfig);
+static void exti_config_interrupt(EXTI_Handler_t *extiConfig);
 
 /*
  * Funcion de configuracion del sistema EXTI.
@@ -20,7 +20,7 @@ static void exti_config_interrupt(EXTI_Config_t *extiConfig);
  * entrada digital
  * */
 
-void exti_Config(EXTI_Config_t *extiConfig){
+void exti_Config(EXTI_Handler_t *extiConfig){
 
 	/* 1.0 Se carga la configuración, que debe ser el PINx como entrada "simple" */
 	gpio_Config(extiConfig->pGPIOHandler);
@@ -57,7 +57,7 @@ static void exti_enable_clock_peripheral(void){
  * Funcion que configura los MUX para asignar el pinX del puerto Y
  * a la entrada EXTI correspondiente.
  * */
-static void exti_assign_channel(EXTI_Config_t *extiConfig){
+static void exti_assign_channel(EXTI_Handler_t *extiConfig){
 	/*Asignamos el canal EXTI que corresponde al PIN_y del puerto GPIO_X
 		 * Debemos activar la línea PIN_Xy (Y = A, B, C... y x = 0, 1, 2, 3...)
 		 * en el módulo EXTI */
@@ -482,7 +482,7 @@ static void exti_assign_channel(EXTI_Config_t *extiConfig){
  * Funcion para seleccionar adecuadamente el flanco que lanza la interrupcion
  * en el canal EXTI especifico.
  * */
-static void exti_select_edge(EXTI_Config_t *extiConfig){
+static void exti_select_edge(EXTI_Handler_t *extiConfig){
 
 	if(extiConfig->edgeType == EXTERNAL_INTERRUPT_FALLING_EDGE){
 		/* Falling Trigger selection register*/
@@ -496,7 +496,7 @@ static void exti_select_edge(EXTI_Config_t *extiConfig){
  * Funcion que configura las mascaras de interrupciones (registro de mascaras) y
  * ademas matricula cada una de las posibles interrupciones en el NVIC
  * */
-static void exti_config_interrupt(EXTI_Config_t *extiConfig){
+static void exti_config_interrupt(EXTI_Handler_t *extiConfig){
 	/* 6.0 Activamos la interrupción del canal que estamos configurando */
 		// Interrupt Mask register
 		EXTI->IMR= (1<< extiConfig->pGPIOHandler->pinConfig.GPIO_PinNumber);
