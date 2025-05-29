@@ -29,7 +29,8 @@ typedef enum{
 
 
 //Creamos la variable donde vamos a guardar el numero que se va a mostrar en el display
-uint16_t numeroDisplay =1234;
+uint16_t numeroDisplay =4095;
+Estado actual = refrescar;
 
 //Inicializamos las variables que van a permitir separar el numeroDisplay en 4 partes
 uint8_t unidad = 0;
@@ -39,7 +40,7 @@ uint8_t milUnidad = 0;
 
 
 //Inicializamos la variable donde guardamos que digito queremos encender (0,1,2,3)
-uint8_t digito =0;
+uint8_t digito = 0;
 
 // Definimos un Pin de prueba
 GPIO_Handler_t userLed ={0}; //PinH1
@@ -51,11 +52,11 @@ GPIO_Handler_t segmento3={0}; //PinC11
 GPIO_Handler_t segmento4={0}; //PinC12
 GPIO_Handler_t segmento5={0}; //PinB7
 GPIO_Handler_t segmento7={0}; //PinC8
-GPIO_Handler_t segmento10={0}; //PinC6
-GPIO_Handler_t segmento11={0}; //PinC5
+GPIO_Handler_t segmento10={0}; //PinA12
+GPIO_Handler_t segmento11={0}; //PinCB12
 GPIO_Handler_t alimentacion0={0}; //PinC13
-GPIO_Handler_t alimentacion1={0}; //PinA12
-GPIO_Handler_t alimentacion2={0}; //PinB12
+GPIO_Handler_t alimentacion1={0}; //PinC5
+GPIO_Handler_t alimentacion2={0}; //PinC6
 GPIO_Handler_t alimentacion3={0}; //PinA11
 
 //Definimos los timers
@@ -77,12 +78,15 @@ void digito_encendido(uint8_t digito, uint8_t unidad,uint8_t decena, uint8_t cen
 //Funcion que se encuentra dentro de "digito_encendido" para definir que numero
 //quiero ver en cada digito
 void definir_numero (uint8_t numero);
+//Funion para configurar los pines que usamos
+void configurarPines();
 
 /*
  * The main function, where everything happens.
  *  */
 int main(void)
 {
+	configurarPines();
 	/*
 	 * Vamos a dividir el numeroDisplay en unidades, decenas, centenas y unidades de mil.
 	 */
@@ -90,118 +94,6 @@ int main(void)
 	decena = separacion_parte (decena1, numeroDisplay);
 	centena = separacion_parte (centena1, numeroDisplay);
 	milUnidad = separacion_parte (milUnidad1, numeroDisplay);
-
-
-	/*Configuramos lo pines que estamos utilizando*/
-	segmento1.pGPIOx							= GPIOD;
-	segmento1.pinConfig.GPIO_PinNumber			= PIN_2;
-	segmento1.pinConfig.GPIO_PinMode			= GPIO_MODE_OUT;
-	segmento1.pinConfig.GPIO_PinOutputType		= GPIO_OTYPE_PUSHPULL;
-	segmento1.pinConfig.GPIO_PinOutputSpeed		= GPIO_OSPEED_MEDIUM;
-	segmento1.pinConfig.GPIO_PinPuPdControl		= GPIO_PUPDR_NOTHING;
-
-	segmento2.pGPIOx							= GPIOC;
-	segmento2.pinConfig.GPIO_PinNumber			= PIN_10;
-	segmento2.pinConfig.GPIO_PinMode			= GPIO_MODE_OUT;
-	segmento2.pinConfig.GPIO_PinOutputType		= GPIO_OTYPE_PUSHPULL;
-	segmento2.pinConfig.GPIO_PinOutputSpeed		= GPIO_OSPEED_MEDIUM;
-	segmento2.pinConfig.GPIO_PinPuPdControl		= GPIO_PUPDR_NOTHING;
-
-	segmento3.pGPIOx							= GPIOC;
-	segmento3.pinConfig.GPIO_PinNumber			= PIN_11;
-	segmento3.pinConfig.GPIO_PinMode			= GPIO_MODE_OUT;
-	segmento3.pinConfig.GPIO_PinOutputType		= GPIO_OTYPE_PUSHPULL;
-	segmento3.pinConfig.GPIO_PinOutputSpeed		= GPIO_OSPEED_MEDIUM;
-	segmento3.pinConfig.GPIO_PinPuPdControl		= GPIO_PUPDR_NOTHING;
-
-	segmento4.pGPIOx							= GPIOC;
-	segmento4.pinConfig.GPIO_PinNumber			= PIN_12;
-	segmento4.pinConfig.GPIO_PinMode			= GPIO_MODE_OUT;
-	segmento4.pinConfig.GPIO_PinOutputType		= GPIO_OTYPE_PUSHPULL;
-	segmento4.pinConfig.GPIO_PinOutputSpeed		= GPIO_OSPEED_MEDIUM;
-	segmento4.pinConfig.GPIO_PinPuPdControl		= GPIO_PUPDR_NOTHING;
-
-	segmento5.pGPIOx							= GPIOB;
-	segmento5.pinConfig.GPIO_PinNumber			= PIN_7;
-	segmento5.pinConfig.GPIO_PinMode			= GPIO_MODE_OUT;
-	segmento5.pinConfig.GPIO_PinOutputType		= GPIO_OTYPE_PUSHPULL;
-	segmento5.pinConfig.GPIO_PinOutputSpeed		= GPIO_OSPEED_MEDIUM;
-	segmento5.pinConfig.GPIO_PinPuPdControl		= GPIO_PUPDR_NOTHING;
-
-	segmento7.pGPIOx							= GPIOC;
-	segmento7.pinConfig.GPIO_PinNumber			= PIN_8;
-	segmento7.pinConfig.GPIO_PinMode			= GPIO_MODE_OUT;
-	segmento7.pinConfig.GPIO_PinOutputType		= GPIO_OTYPE_PUSHPULL;
-	segmento7.pinConfig.GPIO_PinOutputSpeed		= GPIO_OSPEED_MEDIUM;
-	segmento7.pinConfig.GPIO_PinPuPdControl		= GPIO_PUPDR_NOTHING;
-
-	segmento10.pGPIOx							= GPIOC;
-	segmento10.pinConfig.GPIO_PinNumber			= PIN_6;
-	segmento10.pinConfig.GPIO_PinMode			= GPIO_MODE_OUT;
-	segmento10.pinConfig.GPIO_PinOutputType		= GPIO_OTYPE_PUSHPULL;
-	segmento10.pinConfig.GPIO_PinOutputSpeed	= GPIO_OSPEED_MEDIUM;
-	segmento10.pinConfig.GPIO_PinPuPdControl	= GPIO_PUPDR_NOTHING;
-
-	segmento11.pGPIOx							= GPIOC;
-	segmento11.pinConfig.GPIO_PinNumber			= PIN_5;
-	segmento11.pinConfig.GPIO_PinMode			= GPIO_MODE_OUT;
-	segmento11.pinConfig.GPIO_PinOutputType		= GPIO_OTYPE_PUSHPULL;
-	segmento11.pinConfig.GPIO_PinOutputSpeed	= GPIO_OSPEED_MEDIUM;
-	segmento11.pinConfig.GPIO_PinPuPdControl	= GPIO_PUPDR_NOTHING;
-
-	alimentacion0.pGPIOx							= GPIOC;
-	alimentacion0.pinConfig.GPIO_PinNumber			= PIN_13;
-	alimentacion0.pinConfig.GPIO_PinMode			= GPIO_MODE_OUT;
-	alimentacion0.pinConfig.GPIO_PinOutputType		= GPIO_OTYPE_PUSHPULL;
-	alimentacion0.pinConfig.GPIO_PinOutputSpeed		= GPIO_OSPEED_MEDIUM;
-	alimentacion0.pinConfig.GPIO_PinPuPdControl		= GPIO_PUPDR_NOTHING;
-
-	alimentacion1.pGPIOx							= GPIOA;
-	alimentacion1.pinConfig.GPIO_PinNumber			= PIN_12;
-	alimentacion1.pinConfig.GPIO_PinMode			= GPIO_MODE_OUT;
-	alimentacion1.pinConfig.GPIO_PinOutputType		= GPIO_OTYPE_PUSHPULL;
-	alimentacion1.pinConfig.GPIO_PinOutputSpeed		= GPIO_OSPEED_MEDIUM;
-	alimentacion1.pinConfig.GPIO_PinPuPdControl		= GPIO_PUPDR_NOTHING;
-
-	alimentacion2.pGPIOx							= GPIOB;
-	alimentacion2.pinConfig.GPIO_PinNumber			= PIN_12;
-	alimentacion2.pinConfig.GPIO_PinMode			= GPIO_MODE_OUT;
-	alimentacion2.pinConfig.GPIO_PinOutputType		= GPIO_OTYPE_PUSHPULL;
-	alimentacion2.pinConfig.GPIO_PinOutputSpeed		= GPIO_OSPEED_MEDIUM;
-	alimentacion2.pinConfig.GPIO_PinPuPdControl		= GPIO_PUPDR_NOTHING;
-
-	alimentacion3.pGPIOx							= GPIOA;
-	alimentacion3.pinConfig.GPIO_PinNumber			= PIN_11;
-	alimentacion3.pinConfig.GPIO_PinMode			= GPIO_MODE_OUT;
-	alimentacion3.pinConfig.GPIO_PinOutputType		= GPIO_OTYPE_PUSHPULL;
-	alimentacion3.pinConfig.GPIO_PinOutputSpeed		= GPIO_OSPEED_MEDIUM;
-	alimentacion3.pinConfig.GPIO_PinPuPdControl		= GPIO_PUPDR_NOTHING;
-
-
-
-	/* Configuramos el pin */
-	userLed.pGPIOx								= GPIOH;
-	userLed.pinConfig.GPIO_PinNumber			= PIN_1;
-	userLed.pinConfig.GPIO_PinMode				= GPIO_MODE_OUT;
-	userLed.pinConfig.GPIO_PinOutputType		= GPIO_OTYPE_PUSHPULL;
-	userLed.pinConfig.GPIO_PinOutputSpeed		= GPIO_OSPEED_MEDIUM;
-	userLed.pinConfig.GPIO_PinPuPdControl		= GPIO_PUPDR_NOTHING;
-
-	/* Cargamos la configuracion en los registros que gorbiernan cada puerto*/
-
-	gpio_Config(&segmento1);
-	gpio_Config(&segmento2);
-	gpio_Config(&segmento3);
-	gpio_Config(&segmento4);
-	gpio_Config(&segmento5);
-	gpio_Config(&segmento7);
-	gpio_Config(&segmento10);
-	gpio_Config(&segmento11);
-	gpio_Config(&alimentacion0);
-	gpio_Config(&alimentacion1);
-	gpio_Config(&alimentacion2);
-	gpio_Config(&alimentacion3);
-
 
 	/* Cargamos la configuracion en los registros que gobiernan el puerto*/
 	gpio_Config(&userLed);
@@ -216,7 +108,7 @@ int main(void)
 
 	refreshTimer.pTIMx								=TIM3;
 	refreshTimer.TIMx_Config.TIMx_Prescaler			=16000; //Genera incrementos de 1 ms
-	refreshTimer.TIMx_Config.TIMx_Period			=1000;  // De la mano con el prescaler,
+	refreshTimer.TIMx_Config.TIMx_Period			=3;  // De la mano con el prescaler,
 	refreshTimer.TIMx_Config.TIMx_mode				= TIMER_UP_COUNTER;
 	refreshTimer.TIMx_Config.TIMx_InterruptEnable 	= TIMER_INT_ENABLE;
 
@@ -235,13 +127,9 @@ int main(void)
 
 	//Definimos la variable que va a gurdar el estado en el que se encuentra mi maquina de estados
 
-	maquinaEstados(refrescar,digito,unidad, decena, centena, milUnidad);
-
-
-
     /* Loop forever */
 	while(1){
-
+		maquinaEstados(actual,digito,unidad, decena, centena, milUnidad);
 	}
 	return 0;
 }
@@ -254,7 +142,133 @@ int main(void)
  * Creamos la funcion que le indica a la maquina de estados que debe hacer para cada caso
  */
 
+void configurarPines (void){
 
+	/*Configuramos lo pines que estamos utilizando*/
+		segmento1.pGPIOx							= GPIOD;
+		segmento1.pinConfig.GPIO_PinNumber			= PIN_2;
+		segmento1.pinConfig.GPIO_PinMode			= GPIO_MODE_OUT;
+		segmento1.pinConfig.GPIO_PinOutputType		= GPIO_OTYPE_PUSHPULL;
+		segmento1.pinConfig.GPIO_PinOutputSpeed		= GPIO_OSPEED_MEDIUM;
+		segmento1.pinConfig.GPIO_PinPuPdControl		= GPIO_PUPDR_NOTHING;
+
+		segmento2.pGPIOx							= GPIOC;
+		segmento2.pinConfig.GPIO_PinNumber			= PIN_10;
+		segmento2.pinConfig.GPIO_PinMode			= GPIO_MODE_OUT;
+		segmento2.pinConfig.GPIO_PinOutputType		= GPIO_OTYPE_PUSHPULL;
+		segmento2.pinConfig.GPIO_PinOutputSpeed		= GPIO_OSPEED_MEDIUM;
+		segmento2.pinConfig.GPIO_PinPuPdControl		= GPIO_PUPDR_NOTHING;
+
+		segmento3.pGPIOx							= GPIOC;
+		segmento3.pinConfig.GPIO_PinNumber			= PIN_11;
+		segmento3.pinConfig.GPIO_PinMode			= GPIO_MODE_OUT;
+		segmento3.pinConfig.GPIO_PinOutputType		= GPIO_OTYPE_PUSHPULL;
+		segmento3.pinConfig.GPIO_PinOutputSpeed		= GPIO_OSPEED_MEDIUM;
+		segmento3.pinConfig.GPIO_PinPuPdControl		= GPIO_PUPDR_NOTHING;
+
+		segmento4.pGPIOx							= GPIOC;
+		segmento4.pinConfig.GPIO_PinNumber			= PIN_12;
+		segmento4.pinConfig.GPIO_PinMode			= GPIO_MODE_OUT;
+		segmento4.pinConfig.GPIO_PinOutputType		= GPIO_OTYPE_PUSHPULL;
+		segmento4.pinConfig.GPIO_PinOutputSpeed		= GPIO_OSPEED_MEDIUM;
+		segmento4.pinConfig.GPIO_PinPuPdControl		= GPIO_PUPDR_NOTHING;
+
+		segmento5.pGPIOx							= GPIOB;
+		segmento5.pinConfig.GPIO_PinNumber			= PIN_7;
+		segmento5.pinConfig.GPIO_PinMode			= GPIO_MODE_OUT;
+		segmento5.pinConfig.GPIO_PinOutputType		= GPIO_OTYPE_PUSHPULL;
+		segmento5.pinConfig.GPIO_PinOutputSpeed		= GPIO_OSPEED_MEDIUM;
+		segmento5.pinConfig.GPIO_PinPuPdControl		= GPIO_PUPDR_NOTHING;
+
+		segmento7.pGPIOx							= GPIOC;
+		segmento7.pinConfig.GPIO_PinNumber			= PIN_8;
+		segmento7.pinConfig.GPIO_PinMode			= GPIO_MODE_OUT;
+		segmento7.pinConfig.GPIO_PinOutputType		= GPIO_OTYPE_PUSHPULL;
+		segmento7.pinConfig.GPIO_PinOutputSpeed		= GPIO_OSPEED_MEDIUM;
+		segmento7.pinConfig.GPIO_PinPuPdControl		= GPIO_PUPDR_NOTHING;
+
+		segmento10.pGPIOx							= GPIOA;
+		segmento10.pinConfig.GPIO_PinNumber			= PIN_12;
+		segmento10.pinConfig.GPIO_PinMode			= GPIO_MODE_OUT;
+		segmento10.pinConfig.GPIO_PinOutputType		= GPIO_OTYPE_PUSHPULL;
+		segmento10.pinConfig.GPIO_PinOutputSpeed	= GPIO_OSPEED_MEDIUM;
+		segmento10.pinConfig.GPIO_PinPuPdControl	= GPIO_PUPDR_NOTHING;
+
+		segmento11.pGPIOx							= GPIOB;
+		segmento11.pinConfig.GPIO_PinNumber			= PIN_12;
+		segmento11.pinConfig.GPIO_PinMode			= GPIO_MODE_OUT;
+		segmento11.pinConfig.GPIO_PinOutputType		= GPIO_OTYPE_PUSHPULL;
+		segmento11.pinConfig.GPIO_PinOutputSpeed	= GPIO_OSPEED_MEDIUM;
+		segmento11.pinConfig.GPIO_PinPuPdControl	= GPIO_PUPDR_NOTHING;
+
+		alimentacion0.pGPIOx							= GPIOC;
+		alimentacion0.pinConfig.GPIO_PinNumber			= PIN_13;
+		alimentacion0.pinConfig.GPIO_PinMode			= GPIO_MODE_OUT;
+		alimentacion0.pinConfig.GPIO_PinOutputType		= GPIO_OTYPE_PUSHPULL;
+		alimentacion0.pinConfig.GPIO_PinOutputSpeed		= GPIO_OSPEED_MEDIUM;
+		alimentacion0.pinConfig.GPIO_PinPuPdControl		= GPIO_PUPDR_NOTHING;
+
+		alimentacion1.pGPIOx							= GPIOC;
+		alimentacion1.pinConfig.GPIO_PinNumber			= PIN_5;
+		alimentacion1.pinConfig.GPIO_PinMode			= GPIO_MODE_OUT;
+		alimentacion1.pinConfig.GPIO_PinOutputType		= GPIO_OTYPE_PUSHPULL;
+		alimentacion1.pinConfig.GPIO_PinOutputSpeed		= GPIO_OSPEED_MEDIUM;
+		alimentacion1.pinConfig.GPIO_PinPuPdControl		= GPIO_PUPDR_NOTHING;
+
+		alimentacion2.pGPIOx							= GPIOC;
+		alimentacion2.pinConfig.GPIO_PinNumber			= PIN_6;
+		alimentacion2.pinConfig.GPIO_PinMode			= GPIO_MODE_OUT;
+		alimentacion2.pinConfig.GPIO_PinOutputType		= GPIO_OTYPE_PUSHPULL;
+		alimentacion2.pinConfig.GPIO_PinOutputSpeed		= GPIO_OSPEED_MEDIUM;
+		alimentacion2.pinConfig.GPIO_PinPuPdControl		= GPIO_PUPDR_NOTHING;
+
+		alimentacion3.pGPIOx							= GPIOA;
+		alimentacion3.pinConfig.GPIO_PinNumber			= PIN_11;
+		alimentacion3.pinConfig.GPIO_PinMode			= GPIO_MODE_OUT;
+		alimentacion3.pinConfig.GPIO_PinOutputType		= GPIO_OTYPE_PUSHPULL;
+		alimentacion3.pinConfig.GPIO_PinOutputSpeed		= GPIO_OSPEED_MEDIUM;
+		alimentacion3.pinConfig.GPIO_PinPuPdControl		= GPIO_PUPDR_NOTHING;
+
+
+
+		/* Configuramos el pin para el BLinky*/
+		userLed.pGPIOx								= GPIOH;
+		userLed.pinConfig.GPIO_PinNumber			= PIN_1;
+		userLed.pinConfig.GPIO_PinMode				= GPIO_MODE_OUT;
+		userLed.pinConfig.GPIO_PinOutputType		= GPIO_OTYPE_PUSHPULL;
+		userLed.pinConfig.GPIO_PinOutputSpeed		= GPIO_OSPEED_MEDIUM;
+		userLed.pinConfig.GPIO_PinPuPdControl		= GPIO_PUPDR_NOTHING;
+
+		/* Cargamos la configuracion en los registros que gorbiernan cada puerto*/
+
+		gpio_Config(&segmento1);
+		gpio_Config(&segmento2);
+		gpio_Config(&segmento3);
+		gpio_Config(&segmento4);
+		gpio_Config(&segmento5);
+		gpio_Config(&segmento7);
+		gpio_Config(&segmento10);
+		gpio_Config(&segmento11);
+		gpio_Config(&alimentacion0);
+		gpio_Config(&alimentacion1);
+		gpio_Config(&alimentacion2);
+		gpio_Config(&alimentacion3);
+
+		/*Encendemos incicialmente el numero 0 en los 4 digitos*/
+		gpio_WritePin (&segmento1, RESET);
+		gpio_WritePin (&segmento2, RESET);
+		gpio_WritePin (&segmento3, SET);
+		gpio_WritePin (&segmento4, RESET);
+		gpio_WritePin (&segmento5, RESET);
+		gpio_WritePin (&segmento7, RESET);
+		gpio_WritePin (&segmento10, RESET);
+		gpio_WritePin (&segmento11, RESET);
+		gpio_WritePin (&alimentacion0, SET);
+		gpio_WritePin (&alimentacion1, SET);
+		gpio_WritePin (&alimentacion2, SET);
+		gpio_WritePin (&alimentacion3, SET);
+
+}
 int separacion_parte (parteNumero parte, uint16_t numeroDisplay){
 	if (parte == unidad1){
 		uint8_t unidad = 0;
@@ -288,20 +302,20 @@ int separacion_parte (parteNumero parte, uint16_t numeroDisplay){
 }
 
 void maquinaEstados(Estado actual,uint8_t digito,uint8_t unidad, uint8_t decena, uint8_t centena, uint8_t milUnidad){
-
 	if (actual ==refrescar){
-
-		//Primero debemos cersiorarnos de que el digito que queremos encender no tenga un
-		//valor mayor a 3 (ya que solo tenemos 4 digitos
-		digito = valor_digito(digito);
+		//Apagamos todos los digitos
+		gpio_WritePin (&alimentacion3, RESET);
+		gpio_WritePin (&alimentacion1, RESET);
+		gpio_WritePin (&alimentacion2, RESET);
+		gpio_WritePin (&alimentacion0, RESET);
 		//Llamamos a la funcion que nos indica qué pines deben estar encendidos en el digito
 		//que deseo mostrar
 		digito_encendido(digito,unidad, decena, centena, milUnidad);
 
 	}
 }
-uint8_t valor_digito (uint8_t digito){
-	if (digito==4){
+/*uint8_t valor_digito (uint8_t digito){
+	if (digito>=4){
 			digito -= 4;
 			return digito;
 		}
@@ -309,45 +323,37 @@ uint8_t valor_digito (uint8_t digito){
 			__NOP();
 		}
 	return digito;
-}
+}*/
 
 void digito_encendido(uint8_t digito, uint8_t unidad,uint8_t decena, uint8_t centena, uint8_t milUnidad){
 	switch (digito){
 	//Caso en el cual queremos ver el numero en el digito de las unidades
 	case 0: {
-		//Apagamos el digito que estaba encendido anteriormente (en este caso el 4)
-		gpio_WritePin (&alimentacion3, SET);
 		//Encendemos los pines correspondientes al numero que se desea
 		definir_numero (unidad);
 		//Encedemos el digito (1) donde se va a mostrar el numero seleccionado anteriormente
-		gpio_WritePin (&alimentacion0, RESET);
+		gpio_WritePin (&alimentacion0, SET);
 		break;
 	}
 	case 1: {
-		//Apagamos el digito que estaba encendido anteriormente (en este caso el 1)
-		gpio_WritePin (&alimentacion0, SET);
 		//Encendemos los pines correspondientes al numero que se desea
 		definir_numero (decena);
 		//Encedemos el digito (1) donde se va a mostrar el numero seleccionado anteriormente
-		gpio_WritePin (&alimentacion1, RESET);
+		gpio_WritePin (&alimentacion1, SET);
 		break;
 	}
 	case 2:{
-		//Apagamos el digito que estaba encendido anteriormente (en este caso el 2)
-		gpio_WritePin (&alimentacion1, SET);
 		//Encendemos los pines correspondientes al numero que se desea
 		definir_numero (centena);
 		//Encedemos el digito (1) donde se va a mostrar el numero seleccionado anteriormente
-		gpio_WritePin (&alimentacion2, RESET);
+		gpio_WritePin (&alimentacion2, SET);
 		break;
 	}
 	case 3:{
-		//Apagamos el digito que estaba encendido anteriormente (en este caso el 3)
-		gpio_WritePin (&alimentacion2, SET);
 		//Encendemos los pines correspondientes al numero que se desea
 		definir_numero (milUnidad);
 		//Encedemos el digito (1) donde se va a mostrar el numero seleccionado anteriormente
-		gpio_WritePin (&alimentacion3, RESET);
+		gpio_WritePin (&alimentacion3, SET);
 		break;
 	}
 	default:{
@@ -459,7 +465,7 @@ void definir_numero (uint8_t numero){
 	}
 	case 9: {
 		gpio_WritePin(&segmento1, SET);
-		gpio_WritePin(&segmento2, SET);
+		gpio_WritePin(&segmento2, RESET);
 		gpio_WritePin(&segmento3, SET);
 		gpio_WritePin(&segmento4, RESET);
 		gpio_WritePin(&segmento5, RESET);
@@ -479,10 +485,15 @@ void definir_numero (uint8_t numero){
 void timer2_Callback(void){
 	gpio_TooglePin(&userLed);
 }
-
 void timer3_Callback(void){
 	digito +=1;
+	//Debemos cersiorarnos de que el digito que queremos encender no tenga un
+	//valor mayor a 3 (ya que solo tenemos 4 digitos
+	if (digito >= 4){
+		digito=0;
+	}
 }
+
 /*
  * ESta funcion sirve para detectar problemas de parametros
  * incorrectos al momentos de ejecutar un programa.

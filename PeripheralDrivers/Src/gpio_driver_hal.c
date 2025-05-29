@@ -226,16 +226,20 @@ void gpio_WritePin (GPIO_Handler_t * pPinHandler, uint8_t newState){
 
 	/* Verificamos si la accion que deseamos realizar es permitida */
 	//assert_param(IS_GPIO_PIN_ACTION(newState));
-
+	//Creamos una mascara auxiliar
+	uint32_t mask=0b1;
+	//Modifico mi mascara de modo que me quede el valor de 1 en el pin que utilizo
+	mask = mask<< pPinHandler -> pinConfig.GPIO_PinNumber;
 	//Limpiamos la posicion que deseamos
 	//pPinHandler->pGPIOx->ODR &= ~(SET << pPinHandler->Config.GPIO_PinNumber);
 	if (newState == SET){
 		// Trabajando con la parte baja del registro
-		pPinHandler->pGPIOx->ODR|= (SET<< pPinHandler->pinConfig.GPIO_PinNumber);
+		pPinHandler->pGPIOx->ODR|= mask;
+
 	}
 	else{
 		//Trabajando con la parte alta del registro
-		pPinHandler->pGPIOx->ODR |= (SET << (pPinHandler->pinConfig.GPIO_PinNumber + 16));
+		pPinHandler->pGPIOx->ODR &= ~mask;
 	}
 }
 
