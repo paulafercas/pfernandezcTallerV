@@ -19,7 +19,7 @@ typedef enum{
 	cambiar_numero,
 	cambiar_tasa_refresco,
 }Estado;
-
+//Enumeramos las posibles partes que tenemos en numeroDisplay
 typedef enum{
 	unidad1 =0,
 	decena1,
@@ -29,7 +29,7 @@ typedef enum{
 
 
 //Creamos la variable donde vamos a guardar el numero que se va a mostrar en el display
-uint16_t numeroDisplay =4095;
+uint16_t numeroDisplay =0;
 Estado actual = refrescar;
 
 //Inicializamos las variables que van a permitir separar el numeroDisplay en 4 partes
@@ -42,7 +42,7 @@ uint8_t milUnidad = 0;
 //Inicializamos la variable donde guardamos que digito queremos encender (0,1,2,3)
 uint8_t digito = 0;
 
-// Definimos un Pin de prueba
+// Definimos el Pin Blinky
 GPIO_Handler_t userLed ={0}; //PinH1
 
 //Definimos los pines que estamos utilizando para el display 7 segmentos
@@ -70,15 +70,12 @@ Timer_Handler_t refreshTimer ={0};
 void maquinaEstados(Estado actual,uint8_t digito,uint8_t unidad, uint8_t decena, uint8_t centena, uint8_t milUnidad);
 //Funcion que separa el numeroDisplay en 4 partes (unidad, decena, centena, milUnidad)
 int separacion_parte (parteNumero parte, uint16_t numeroDisplay);
-//Funcion que nos asegura de que el parametro "digito" no vaya a ser mayor que 3,
-//ya que solo tenemos 4 digitos enumerados desde 0 a 3
-uint8_t valor_digito (uint8_t digito);
 //Funcion que nos permite encender el numero que queremos en el digito que queremos
 void digito_encendido(uint8_t digito, uint8_t unidad,uint8_t decena, uint8_t centena, uint8_t milUnidad);
 //Funcion que se encuentra dentro de "digito_encendido" para definir que numero
 //quiero ver en cada digito
 void definir_numero (uint8_t numero);
-//Funion para configurar los pines que usamos
+//Funcion para configurar los pines que usamos
 void configurarPines();
 
 /*
@@ -95,7 +92,8 @@ int main(void)
 	centena = separacion_parte (centena1, numeroDisplay);
 	milUnidad = separacion_parte (milUnidad1, numeroDisplay);
 
-	/* Cargamos la configuracion en los registros que gobiernan el puerto*/
+	/* Cargamos la configuracion en los registros que gobiernan los puertos
+	 * de cada Timer*/
 	gpio_Config(&userLed);
 
 	gpio_WritePin(&userLed,SET);
@@ -118,14 +116,11 @@ int main(void)
 	// Encendemos el BlinkTimer.
 	timer_SetState(&blinkTimer, TIMER_ON);
 
-	/* Configuramos el Timer */
+	/* Configuramos el refreshTimer */
 	timer_Config(&refreshTimer);
 
 	// Encendemos el Timer.
 	timer_SetState(&refreshTimer, TIMER_ON);
-
-
-	//Definimos la variable que va a gurdar el estado en el que se encuentra mi maquina de estados
 
     /* Loop forever */
 	while(1){
@@ -133,15 +128,9 @@ int main(void)
 	}
 	return 0;
 }
-
 /*
- *  Overwrite function
- *   */
-
-/*
- * Creamos la funcion que le indica a la maquina de estados que debe hacer para cada caso
+ * Funcion que configura los pines que estamos utilizando
  */
-
 void configurarPines (void){
 
 	/*Configuramos lo pines que estamos utilizando*/
@@ -300,7 +289,9 @@ int separacion_parte (parteNumero parte, uint16_t numeroDisplay){
 		return 0;
 	}
 }
-
+/*
+ * Creamos la funcion que le indica a la maquina de estados que debe hacer para cada caso
+ */
 void maquinaEstados(Estado actual,uint8_t digito,uint8_t unidad, uint8_t decena, uint8_t centena, uint8_t milUnidad){
 	if (actual ==refrescar){
 		//Apagamos todos los digitos
@@ -314,17 +305,9 @@ void maquinaEstados(Estado actual,uint8_t digito,uint8_t unidad, uint8_t decena,
 
 	}
 }
-/*uint8_t valor_digito (uint8_t digito){
-	if (digito>=4){
-			digito -= 4;
-			return digito;
-		}
-		else{
-			__NOP();
-		}
-	return digito;
-}*/
-
+/*
+ * Funcion que determina qué digito tenemos encendido
+ */
 void digito_encendido(uint8_t digito, uint8_t unidad,uint8_t decena, uint8_t centena, uint8_t milUnidad){
 	switch (digito){
 	//Caso en el cual queremos ver el numero en el digito de las unidades
@@ -362,6 +345,9 @@ void digito_encendido(uint8_t digito, uint8_t unidad,uint8_t decena, uint8_t cen
 	}
 	}// Fin del Switch-case
 }
+/*
+ * Funcion que determina que numero vamos a mostrar
+ */
 void definir_numero (uint8_t numero){
 	switch (numero){
 	case 0: {
@@ -481,10 +467,15 @@ void definir_numero (uint8_t numero){
 	}// Fin del switch-case
 
 }
-
+/*
+ * Timer que controla el blinky
+ */
 void timer2_Callback(void){
 	gpio_TooglePin(&userLed);
 }
+/*
+ * Timer que controla el refresh
+ */
 void timer3_Callback(void){
 	digito +=1;
 	//Debemos cersiorarnos de que el digito que queremos encender no tenga un
@@ -495,8 +486,8 @@ void timer3_Callback(void){
 }
 
 /*
- * ESta funcion sirve para detectar problemas de parametros
- * incorrectos al momentos de ejecutar un programa.
+ * Esta funcion sirve para detectar problemas de parametros
+ * incorrectos al momento de ejecutar un programa.
  * */
 void assert_failed(uint8_t* file, uint32_t line){
 	while(1){
