@@ -11,27 +11,12 @@
 #include "gpio_driver_hal.h"
 #include "timer_driver_hal.h"
 #include "exti_driver_hal.h"
-
-
-//Definimos una enumeracion con los diferentes estados que puede tener la maquina
-typedef enum{
-	refrescar,
-	cambiar_numero,
-	cambiar_tasa_refresco,
-	resetear,
-}Estado;
-//Enumeramos las posibles partes que tenemos en numeroDisplay
-typedef enum{
-	unidad1 =0,
-	decena1,
-	centena1,
-	milUnidad1,
-}parteNumero;
+#include "main.h"
 
 
 //Creamos la variable donde vamos a guardar el numero que se va a mostrar en el display
-uint16_t numeroDisplay =0;
-volatile Estado actual = refrescar;
+uint8_t numeroDisplay =0;
+estadoActual.estado = refrescar;
 
 //Inicializamos las variables que van a permitir separar el numeroDisplay en 4 partes
 uint8_t unidad = 0;
@@ -82,9 +67,9 @@ Timer_Handler_t refreshTimer ={0};
  * Declaramos la funciones que aparecerán próximamente
  */
 //Funcion que define qué se va a hacer según el estado en el que se encuentre la maquina
-void maquinaEstados(Estado actual,uint8_t digito,uint8_t unidad, uint8_t decena, uint8_t centena, uint8_t milUnidad);
+void maquinaEstados(estadoActual estado,uint8_t digito,uint8_t unidad, uint8_t decena, uint8_t centena, uint8_t milUnidad);
 //Funcion que separa el numeroDisplay en 4 partes (unidad, decena, centena, milUnidad)
-int separacion_parte (parteNumero parte, uint16_t numeroDisplay);
+int separacion_parte (parteNumero parte, uint8_t numeroDisplay);
 //Funcion que nos permite encender el numero que queremos en el digito que queremos
 void digito_encendido(uint8_t digito, uint8_t unidad,uint8_t decena, uint8_t centena, uint8_t milUnidad);
 //Funcion que se encuentra dentro de "digito_encendido" para definir que numero
@@ -97,7 +82,11 @@ void configurarTimers ();
 //Funcion que configura los pines para el EXTI
 void configurarExti ();
 //Funcion para cambiar numero según el Encoder
-uint16_t cambioNumero (uint16_t numeroDisplay);
+uint8_t cambioNumero (uint8_t numeroDisplay);
+/*
+ * Funcion para poner todo en ceros
+ * void ceros (void);
+ */
 
 
 /*
@@ -108,17 +97,12 @@ int main(void)
 	configurar7Segmentos();
 	configurarTimers ();
 	configurarExti ();
-	/*
-	 * Vamos a dividir el numeroDisplay en unidades, decenas, centenas y unidades de mil.
-	 */
-	unidad =  separacion_parte (unidad1, numeroDisplay);
-	decena = separacion_parte (decena1, numeroDisplay);
-	centena = separacion_parte (centena1, numeroDisplay);
-	milUnidad = separacion_parte (milUnidad1, numeroDisplay);
 
     /* Loop forever */
 	while(1){
-		maquinaEstados(actual,digito,unidad, decena, centena, milUnidad);
+		if(estadoActual.estado != IDLE){
+			maquinaEstados(estado,digito,unidad, decena, centena, milUnidad);
+		}
 	}
 	return 0;
 }
@@ -226,8 +210,11 @@ void configurar7Segmentos (void){
 		gpio_Config(&alimentacion1);
 		gpio_Config(&alimentacion2);
 		gpio_Config(&alimentacion3);
+}
 
 		/*Encendemos incicialmente el numero 0 en los 4 digitos*/
+		//ceros ();
+/*void ceros (void) {
 		gpio_WritePin (&segmento1, RESET);
 		gpio_WritePin (&segmento2, RESET);
 		gpio_WritePin (&segmento3, SET);
@@ -241,7 +228,7 @@ void configurar7Segmentos (void){
 		gpio_WritePin (&alimentacion2, SET);
 		gpio_WritePin (&alimentacion3, SET);
 
-}
+}*/
 void configurarTimers (void){
 
 	/* Configuramos el pin para el BLinky*/
@@ -335,55 +322,85 @@ void configurarExti (void){
 
 
 }
-int separacion_parte (parteNumero parte, uint16_t numeroDisplay){
-	if (parte == unidad1){
+uint8_t separacion_parte (parteNumero parte, uint8_t numeroDisplay){
+	switch (parte){
+	case unidad1:{
 		uint8_t unidad = 0;
 		unidad = numeroDisplay%10;
 		return unidad;
+		break;
 	}
-	else if (parte == decena1){
+	case decena1: {
 		uint8_t unidad = 0;
 		uint8_t decena = 0;
 		unidad = numeroDisplay%10;
 		decena = ((numeroDisplay-unidad)/10)%10;
 		return decena;
+		break;
 	}
-	else if (parte == centena1){
+	case centena1:{
 		uint8_t residuoCentena = 0;
 		uint8_t centena = 0;
 		residuoCentena = numeroDisplay%100;
 		centena = ((numeroDisplay - residuoCentena)/100)%10;
 		return centena;
+		break;
 	}
-	else if (parte == milUnidad1){
+	case milUnidad1: {
 		uint8_t residuoMil = 0;
 		residuoMil = numeroDisplay%1000;
 		uint8_t milUnidad = 0;
 		milUnidad = (numeroDisplay-residuoMil)/1000;
 		return milUnidad;
+		break;
 	}
-	else {
+	default:{
 		return 0;
 	}
+	}//Fin del Switch case
 }
+
 /*
  * Creamos la funcion que le indica a la maquina de estados que debe hacer para cada caso
  */
-void maquinaEstados(Estado actual,uint8_t digito,uint8_t unidad, uint8_t decena, uint8_t centena, uint8_t milUnidad){
-	if (actual ==refrescar){
+void maquinaEstados(estadoActual estado,uint8_t digito,uint8_t unidad, uint8_t decena, uint8_t centena, uint8_t milUnidad){
+	switch (estado){
+	case refrescar:{
 		//Apagamos todos los digitos
 		gpio_WritePin (&alimentacion3, SET);
 		gpio_WritePin (&alimentacion1, SET);
 		gpio_WritePin (&alimentacion2, SET);
 		gpio_WritePin (&alimentacion0, SET);
 		//Llamamos a la funcion que nos indica qué pines deben estar encendidos en el digito
-		//que deseo mostrar
+		//que deseo mostrar}
 		digito_encendido(digito,unidad, decena, centena, milUnidad);
 	}
-	else if (actual == cambiar_numero){
+	case cambiar_numero: {
 		numeroDisplay = cambioNumero (numeroDisplay);
-		actual = refrescar;
+		/*
+		 * Vamos a dividir el numeroDisplay en unidades, decenas, centenas y unidades de mil.
+		 */
+		unidad =  separacion_parte (unidad1, numeroDisplay);
+		decena = separacion_parte (decena1, numeroDisplay);
+		centena = separacion_parte (centena1, numeroDisplay);
+		milUnidad = separacion_parte (milUnidad1, numeroDisplay);
+
+		estadoActual.estado = refrescar;
 	}
+	case aumentar_tasa_refresco:{
+
+	}
+	case disminuir_tasa_refresco:{
+
+	}
+	case resetear:{
+		numeroDisplay = 0;
+	}
+	default:{
+		__NOP();
+		break;
+	}
+	}//Fin del Switch case
 }
 /*
  * Funcion que determina qué digito tenemos encendido
@@ -547,7 +564,7 @@ void definir_numero (uint8_t numero){
 	}// Fin del switch-case
 
 }
-uint16_t cambioNumero (uint16_t numeroDisplay){
+uint8_t cambioNumero (uint8_t numeroDisplay){
 	uint8_t valor_DT = 0;
 	valor_DT = gpio_ReadPin(&gpioDT);
 	switch (valor_DT){
@@ -587,18 +604,18 @@ void timer3_Callback(void){
 }
 
 void callback_ExtInt3 (void){
-	actual = cambiar_numero;
+	estado = cambiar_numero;
 }
 
 void callback_ExtInt5 (void){
-	actual = cambiar_tasa_refresco;
+	estado = aumentar_tasa_refresco;
 }
 void callback_ExtInt2 (void){
-	actual = cambiar_tasa_refresco;
+	estado = disminuir_tasa_refresco;
 }
 
 void callback_ExtInt8 (void){
-	actual = resetear;
+	estado = resetear;
 }
 
 /*
