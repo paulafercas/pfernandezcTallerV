@@ -18,6 +18,7 @@ typedef enum{
 	refrescar,
 	cambiar_numero,
 	cambiar_tasa_refresco,
+	resetear,
 }Estado;
 //Enumeramos las posibles partes que tenemos en numeroDisplay
 typedef enum{
@@ -29,8 +30,8 @@ typedef enum{
 
 
 //Creamos la variable donde vamos a guardar el numero que se va a mostrar en el display
-uint16_t numeroDisplay =1407;
-Estado actual = refrescar;
+uint16_t numeroDisplay =0;
+volatile Estado actual = refrescar;
 
 //Inicializamos las variables que van a permitir separar el numeroDisplay en 4 partes
 uint8_t unidad = 0;
@@ -61,15 +62,15 @@ GPIO_Handler_t alimentacion3={0}; //PinA11
 
 //Definimos los pines que estamos utilizando para los botones
 //y el encoder
-GPIO_Handler_t gpioCLK ={0}; //PinB8
+GPIO_Handler_t gpioCLK ={0}; //PinC3
 EXTI_Handler_t extiCLK = {0}; //EXTI del CLK
 GPIO_Handler_t gpioDT = {0}; //PinPC9
 EXTI_Handler_t extiDT ={0}; //EXTI del DT
-GPIO_Handler_t gpioSW ={0}; //PinF4
+GPIO_Handler_t gpioSW ={0}; //PinB8
 EXTI_Handler_t extiSW ={0}; //EXTI del SW
-GPIO_Handler_t gpioAumentarRefresh = {0}; //PinB9
+GPIO_Handler_t gpioAumentarRefresh = {0}; //PinA5
 EXTI_Handler_t extiAumentarRefresh ={0}; //EXTI del botonAumentarRefresh
-GPIO_Handler_t gpioDisminuirRefresh ={0}; //PinF1
+GPIO_Handler_t gpioDisminuirRefresh ={0}; //PinC2
 EXTI_Handler_t extiDisminuirRefresh ={0}; //EXTI del botonDisminuirRefresh
 
 
@@ -95,6 +96,8 @@ void configurar7Segmentos();
 void configurarTimers ();
 //Funcion que configura los pines para el EXTI
 void configurarExti ();
+//Funcion para cambiar numero según el Encoder
+uint16_t cambioNumero (uint16_t numeroDisplay);
 
 
 /*
@@ -262,7 +265,7 @@ void configurarTimers (void){
 
 	refreshTimer.pTIMx								=TIM3;
 	refreshTimer.TIMx_Config.TIMx_Prescaler			=16000; //Genera incrementos de 1 ms
-	refreshTimer.TIMx_Config.TIMx_Period			=500;  // De la mano con el prescaler,
+	refreshTimer.TIMx_Config.TIMx_Period			=5;  // De la mano con el prescaler,
 	refreshTimer.TIMx_Config.TIMx_mode				= TIMER_UP_COUNTER;
 	refreshTimer.TIMx_Config.TIMx_InterruptEnable 	= TIMER_INT_ENABLE;
 
@@ -280,30 +283,56 @@ void configurarTimers (void){
 }
 
 void configurarExti (void){
-	gpioCLK.pGPIOx							= GPIOB;
-	gpioCLK.pinConfig.GPIO_PinNumber		= PIN_8;
+	gpioCLK.pGPIOx							= GPIOC;
+	gpioCLK.pinConfig.GPIO_PinNumber		= PIN_3;
 	gpioCLK.pinConfig.GPIO_PinMode			= GPIO_MODE_IN;
 	gpioCLK.pinConfig.GPIO_PinPuPdControl	= GPIO_PUPDR_NOTHING;
+
+	extiCLK.pGPIOHandler					= &gpioCLK;
+	extiCLK.edgeType 						= EXTERNAL_INTERRUPT_FALLING_EDGE;
 
 	gpioDT.pGPIOx							= GPIOC;
 	gpioDT.pinConfig.GPIO_PinNumber			= PIN_9;
 	gpioDT.pinConfig.GPIO_PinMode			= GPIO_MODE_IN;
 	gpioDT.pinConfig.GPIO_PinPuPdControl	= GPIO_PUPDR_NOTHING;
 
-	gpioSW.pGPIOx							= GPIOC;
-	gpioSW.pinConfig.GPIO_PinNumber			= PIN_3;
+	gpioSW.pGPIOx							= GPIOB;
+	gpioSW.pinConfig.GPIO_PinNumber			= PIN_8;
 	gpioSW.pinConfig.GPIO_PinMode			= GPIO_MODE_IN;
 	gpioSW.pinConfig.GPIO_PinPuPdControl	= GPIO_PUPDR_NOTHING;
 
-	gpioAumentarRefresh.pGPIOx							= GPIOB;
-	gpioAumentarRefresh.pinConfig.GPIO_PinNumber		= PIN_9;
+	extiSW.pGPIOHandler						= &gpioSW;
+	extiSW.edgeType							= EXTERNAL_INTERRUPT_RISING_EDGE;
+
+	gpioAumentarRefresh.pGPIOx							= GPIOA;
+	gpioAumentarRefresh.pinConfig.GPIO_PinNumber		= PIN_5;
 	gpioAumentarRefresh.pinConfig.GPIO_PinMode			= GPIO_MODE_IN;
 	gpioAumentarRefresh.pinConfig.GPIO_PinPuPdControl	= GPIO_PUPDR_NOTHING;
+
+	extiAumentarRefresh.pGPIOHandler					= &gpioAumentarRefresh;
+	extiAumentarRefresh.edgeType						= EXTERNAL_INTERRUPT_FALLING_EDGE;
 
 	gpioDisminuirRefresh.pGPIOx							= GPIOC;
 	gpioDisminuirRefresh.pinConfig.GPIO_PinNumber		= PIN_2;
 	gpioDisminuirRefresh.pinConfig.GPIO_PinMode			= GPIO_MODE_IN;
 	gpioDisminuirRefresh.pinConfig.GPIO_PinPuPdControl	= GPIO_PUPDR_NOTHING;
+
+	extiDisminuirRefresh.pGPIOHandler					= &gpioDisminuirRefresh;
+	extiDisminuirRefresh.edgeType						= EXTERNAL_INTERRUPT_FALLING_EDGE;
+
+	/*Cargamos la configuracion a los pines que gobiernan sus respectivos puertos*/
+	gpio_Config (&gpioCLK);
+	gpio_Config (&gpioDT);
+	gpio_Config (&gpioSW);
+	gpio_Config (&gpioAumentarRefresh);
+	gpio_Config (&gpioDisminuirRefresh);
+
+	/*Cargamos la configuracion para los exti*/
+	exti_Config (&extiCLK);
+	exti_Config (&extiSW);
+	exti_Config (&extiAumentarRefresh);
+	exti_Config (&extiDisminuirRefresh);
+
 
 }
 int separacion_parte (parteNumero parte, uint16_t numeroDisplay){
@@ -350,7 +379,10 @@ void maquinaEstados(Estado actual,uint8_t digito,uint8_t unidad, uint8_t decena,
 		//Llamamos a la funcion que nos indica qué pines deben estar encendidos en el digito
 		//que deseo mostrar
 		digito_encendido(digito,unidad, decena, centena, milUnidad);
-
+	}
+	else if (actual == cambiar_numero){
+		numeroDisplay = cambioNumero (numeroDisplay);
+		actual = refrescar;
 	}
 }
 /*
@@ -515,6 +547,27 @@ void definir_numero (uint8_t numero){
 	}// Fin del switch-case
 
 }
+uint16_t cambioNumero (uint16_t numeroDisplay){
+	uint8_t valor_DT = 0;
+	valor_DT = gpio_ReadPin(&gpioDT);
+	switch (valor_DT){
+	case 0: {
+		numeroDisplay ++;
+		return numeroDisplay;
+		break;
+	}
+	case 1: {
+		numeroDisplay --;
+		return numeroDisplay;
+		break;
+	}
+	default:{
+		return numeroDisplay;
+		break;
+	}
+	}
+}
+
 /*
  * Timer que controla el blinky
  */
@@ -531,6 +584,21 @@ void timer3_Callback(void){
 	if (digito >= 4){
 		digito=0;
 	}
+}
+
+void callback_ExtInt3 (void){
+	actual = cambiar_numero;
+}
+
+void callback_ExtInt5 (void){
+	actual = cambiar_tasa_refresco;
+}
+void callback_ExtInt2 (void){
+	actual = cambiar_tasa_refresco;
+}
+
+void callback_ExtInt8 (void){
+	actual = resetear;
 }
 
 /*

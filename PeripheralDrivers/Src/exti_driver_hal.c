@@ -552,52 +552,52 @@ static void exti_config_interrupt(EXTI_Handler_t *extiConfig){
 
 /**/
 //Callbacks para cada funcion del EXTI
-__attribute__ ((weak)) void callback_extInt0(void){
+__attribute__ ((weak)) void callback_ExtInt0(void){
 	__NOP();
 }
-__attribute__ ((weak)) void callback_extInt1(void){
+__attribute__ ((weak)) void callback_ExtInt1(void){
 	__NOP();
 }
-__attribute__ ((weak)) void callback_extInt2(void){
+__attribute__ ((weak)) void callback_ExtInt2(void){
 	__NOP();
 }
-__attribute__ ((weak)) void callback_extInt3(void){
+__attribute__ ((weak)) void callback_ExtInt3(void){
 	__NOP();
 }
-__attribute__ ((weak)) void callback_extInt4(void){
+__attribute__ ((weak)) void callback_ExtInt4(void){
 	__NOP();
 }
-__attribute__ ((weak)) void callback_extInt5(void){
+__attribute__ ((weak)) void callback_ExtInt5(void){
 	__NOP();
 }
-__attribute__ ((weak)) void callback_extInt6(void){
+__attribute__ ((weak)) void callback_ExtInt6(void){
 	__NOP();
 }
-__attribute__ ((weak)) void callback_extInt7(void){
+__attribute__ ((weak)) void callback_ExtInt7(void){
 	__NOP();
 }
-__attribute__ ((weak)) void callback_extInt8(void){
+__attribute__ ((weak)) void callback_ExtInt8(void){
 	__NOP();
 }
-__attribute__ ((weak)) void callback_extInt9(void){
+__attribute__ ((weak)) void callback_ExtInt9(void){
 	__NOP();
 }
-__attribute__ ((weak)) void callback_extInt10(void){
+__attribute__ ((weak)) void callback_ExtInt10(void){
 	__NOP();
 }
-__attribute__ ((weak)) void callback_extInt11(void){
+__attribute__ ((weak)) void callback_ExtInt11(void){
 	__NOP();
 }
-__attribute__ ((weak)) void callback_extInt12(void){
+__attribute__ ((weak)) void callback_ExtInt12(void){
 	__NOP();
 }
-__attribute__ ((weak)) void callback_extInt13(void){
+__attribute__ ((weak)) void callback_ExtInt13(void){
 	__NOP();
 }
-__attribute__ ((weak)) void callback_extIn140(void){
+__attribute__ ((weak)) void callback_ExtInt14(void){
 	__NOP();
 }
-__attribute__ ((weak)) void callback_extInt15(void){
+__attribute__ ((weak)) void callback_ExtInt15(void){
 	__NOP();
 }
 
@@ -745,7 +745,7 @@ void EXTI15_10_IRQHandler(void){
 		EXTI->PR |= EXTI_PR_PR10;
 
 		// llamamos al callback
-		callback_extInt10();
+		callback_ExtInt10();
 
 	}
 	else if (EXTI->PR & EXTI_PR_PR11){
