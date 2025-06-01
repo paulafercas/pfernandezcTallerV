@@ -15,7 +15,8 @@ typedef enum{
 	aumentar_tasa_refresco,
 	disminuir_tasa_refresco,
 	resetear,
-	IDLE,
+	Blinky,
+	IDLE
 }posiblesEstados;
 
 typedef struct
@@ -30,11 +31,7 @@ typedef enum{
 	decena1,
 	centena1,
 	milUnidad1,
-}parteNumero1;
-
-typedef struct
-{
-	parteNumero1 parte;
 }parteNumero;
+
 
 #endif /* MAIN_H_ */

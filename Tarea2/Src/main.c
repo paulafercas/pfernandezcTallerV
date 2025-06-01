@@ -13,10 +13,12 @@
 #include "exti_driver_hal.h"
 #include "main.h"
 
+//Inicializamos la variable a la cual vamos a gurdarle el estado que
+//tiene la maquina
+estadoActual fsm ={0};
 
 //Creamos la variable donde vamos a guardar el numero que se va a mostrar en el display
-uint8_t numeroDisplay =0;
-estadoActual.estado = refrescar;
+uint16_t numeroDisplay =0;
 
 //Inicializamos las variables que van a permitir separar el numeroDisplay en 4 partes
 uint8_t unidad = 0;
@@ -63,13 +65,17 @@ EXTI_Handler_t extiDisminuirRefresh ={0}; //EXTI del botonDisminuirRefresh
 Timer_Handler_t blinkTimer = {0};
 Timer_Handler_t refreshTimer ={0};
 
+//Inicializamos la variable que va a modificar la tasa de refresco
+//Comenzamos con un periodo de 250ms
+uint16_t tasa_refresco = 20;
+
 /*
  * Declaramos la funciones que aparecerán próximamente
  */
 //Funcion que define qué se va a hacer según el estado en el que se encuentre la maquina
-void maquinaEstados(estadoActual estado,uint8_t digito,uint8_t unidad, uint8_t decena, uint8_t centena, uint8_t milUnidad);
+void maquinaEstados(uint16_t numeroLocal,uint8_t digito);
 //Funcion que separa el numeroDisplay en 4 partes (unidad, decena, centena, milUnidad)
-int separacion_parte (parteNumero parte, uint8_t numeroDisplay);
+uint16_t separacion_parte (parteNumero parte, uint16_t numeroDisplay);
 //Funcion que nos permite encender el numero que queremos en el digito que queremos
 void digito_encendido(uint8_t digito, uint8_t unidad,uint8_t decena, uint8_t centena, uint8_t milUnidad);
 //Funcion que se encuentra dentro de "digito_encendido" para definir que numero
@@ -82,7 +88,9 @@ void configurarTimers ();
 //Funcion que configura los pines para el EXTI
 void configurarExti ();
 //Funcion para cambiar numero según el Encoder
-uint8_t cambioNumero (uint8_t numeroDisplay);
+uint16_t cambioNumero (uint16_t numeroDisplay);
+//Funcion para encender inicialmente el Display en ceros
+//void ceros (void);
 /*
  * Funcion para poner todo en ceros
  * void ceros (void);
@@ -97,11 +105,13 @@ int main(void)
 	configurar7Segmentos();
 	configurarTimers ();
 	configurarExti ();
+	//ceros();
+	fsm.estado = refrescar;
 
     /* Loop forever */
 	while(1){
-		if(estadoActual.estado != IDLE){
-			maquinaEstados(estado,digito,unidad, decena, centena, milUnidad);
+		if(fsm.estado != IDLE){
+			maquinaEstados(numeroDisplay,digito);
 		}
 	}
 	return 0;
@@ -212,8 +222,8 @@ void configurar7Segmentos (void){
 		gpio_Config(&alimentacion3);
 }
 
-		/*Encendemos incicialmente el numero 0 en los 4 digitos*/
-		//ceros ();
+//Encendemos incicialmente el numero 0 en los 4 digitos*/
+//ceros ();
 /*void ceros (void) {
 		gpio_WritePin (&segmento1, RESET);
 		gpio_WritePin (&segmento2, RESET);
@@ -252,7 +262,7 @@ void configurarTimers (void){
 
 	refreshTimer.pTIMx								=TIM3;
 	refreshTimer.TIMx_Config.TIMx_Prescaler			=16000; //Genera incrementos de 1 ms
-	refreshTimer.TIMx_Config.TIMx_Period			=5;  // De la mano con el prescaler,
+	refreshTimer.TIMx_Config.TIMx_Period			=tasa_refresco;  // De la mano con el prescaler,
 	refreshTimer.TIMx_Config.TIMx_mode				= TIMER_UP_COUNTER;
 	refreshTimer.TIMx_Config.TIMx_InterruptEnable 	= TIMER_INT_ENABLE;
 
@@ -276,7 +286,7 @@ void configurarExti (void){
 	gpioCLK.pinConfig.GPIO_PinPuPdControl	= GPIO_PUPDR_NOTHING;
 
 	extiCLK.pGPIOHandler					= &gpioCLK;
-	extiCLK.edgeType 						= EXTERNAL_INTERRUPT_FALLING_EDGE;
+	extiCLK.edgeType 						= EXTERNAL_INTERRUPT_RISING_EDGE;
 
 	gpioDT.pGPIOx							= GPIOC;
 	gpioDT.pinConfig.GPIO_PinNumber			= PIN_9;
@@ -308,6 +318,7 @@ void configurarExti (void){
 	extiDisminuirRefresh.edgeType						= EXTERNAL_INTERRUPT_FALLING_EDGE;
 
 	/*Cargamos la configuracion a los pines que gobiernan sus respectivos puertos*/
+
 	gpio_Config (&gpioCLK);
 	gpio_Config (&gpioDT);
 	gpio_Config (&gpioSW);
@@ -321,8 +332,9 @@ void configurarExti (void){
 	exti_Config (&extiDisminuirRefresh);
 
 
+
 }
-uint8_t separacion_parte (parteNumero parte, uint8_t numeroDisplay){
+uint16_t separacion_parte (parteNumero parte, uint16_t numeroDisplay){
 	switch (parte){
 	case unidad1:{
 		uint8_t unidad = 0;
@@ -363,38 +375,90 @@ uint8_t separacion_parte (parteNumero parte, uint8_t numeroDisplay){
 /*
  * Creamos la funcion que le indica a la maquina de estados que debe hacer para cada caso
  */
-void maquinaEstados(estadoActual estado,uint8_t digito,uint8_t unidad, uint8_t decena, uint8_t centena, uint8_t milUnidad){
-	switch (estado){
+void maquinaEstados(uint16_t numeroLocal, uint8_t digito){
+	switch (fsm.estado){
 	case refrescar:{
 		//Apagamos todos los digitos
 		gpio_WritePin (&alimentacion3, SET);
 		gpio_WritePin (&alimentacion1, SET);
 		gpio_WritePin (&alimentacion2, SET);
 		gpio_WritePin (&alimentacion0, SET);
-		//Llamamos a la funcion que nos indica qué pines deben estar encendidos en el digito
-		//que deseo mostrar}
-		digito_encendido(digito,unidad, decena, centena, milUnidad);
-	}
-	case cambiar_numero: {
-		numeroDisplay = cambioNumero (numeroDisplay);
-		/*
-		 * Vamos a dividir el numeroDisplay en unidades, decenas, centenas y unidades de mil.
-		 */
+		// Vamos a dividir el numeroDisplay en unidades, decenas, centenas y unidades de mil.
 		unidad =  separacion_parte (unidad1, numeroDisplay);
 		decena = separacion_parte (decena1, numeroDisplay);
 		centena = separacion_parte (centena1, numeroDisplay);
 		milUnidad = separacion_parte (milUnidad1, numeroDisplay);
-
-		estadoActual.estado = refrescar;
+		//Llamamos a la funcion que nos indica qué pines deben estar encendidos en el digito
+		//que deseo mostrar
+		digito_encendido(digito,unidad, decena, centena, milUnidad);
+		break;
+	}
+	case cambiar_numero: {
+		//Llamamos a la funcion encargada de cambiar el numero
+		//debido a la interrupcion
+		numeroDisplay = cambioNumero (numeroLocal);
+		//Volvemos al estado refrescar
+		fsm.estado = refrescar;
+		break;
 	}
 	case aumentar_tasa_refresco:{
+		// Apagamos el Timer.
+		timer_SetState(&refreshTimer, TIMER_OFF);
+		//Nos aseguramos de que la tasa de refresco no vaya a sea menor a 4ms
+		if (tasa_refresco<=1){
+			tasa_refresco = 20;
+		}
+		//Disminuimoss en 1 ms la tasa de refresco
+		else {
+			tasa_refresco/=2;
+		}
 
+		//Configuramos el refresh Timer
+		refreshTimer.TIMx_Config.TIMx_Period			=tasa_refresco;
+		//Guardamos las nuevas configuraciones
+		timer_Config (&refreshTimer);
+		// Encendemos nuevamente el Timer
+		timer_SetState(&refreshTimer, TIMER_ON);
+		fsm.estado = refrescar;
+		break;
 	}
 	case disminuir_tasa_refresco:{
-
+		// Apagamos el Timer.
+		timer_SetState(&refreshTimer, TIMER_OFF);
+		//Nos aseguramos de que la tasa de refresco no vaya a ser mayor de 1000 ms
+		if (tasa_refresco>=1000){
+			//Llevamos a la tasa de refresco a su estado inicial
+			tasa_refresco =15;
+		}
+		else{
+			//Aumentamos la tasa de refresco multiplicando por 2
+			tasa_refresco*=2;
+		}
+		//Configuramos el refresh Timer
+		refreshTimer.TIMx_Config.TIMx_Period			=tasa_refresco;
+		//Guardamos las nuevas configuraciones
+		timer_Config (&refreshTimer);
+		// Encendemos nuevamente el Timer
+		timer_SetState(&refreshTimer, TIMER_ON);
+		//Volvemos al estado refrescar
+		fsm.estado = refrescar;
+		break;
 	}
 	case resetear:{
+		//Con el SWITCH vamos a reiniciar nuestro contador
 		numeroDisplay = 0;
+		//Volvemos al estado refrescar
+		fsm.estado = refrescar;
+	}
+	case Blinky:{
+		//Encendemos o apagamos el led
+		gpio_TooglePin(&blinky);
+		//Volvemos al estado refrescar
+		fsm.estado = refrescar;
+	}
+	case IDLE:{
+		//En esta funcion no se hace absolutamente nada
+		break;
 	}
 	default:{
 		__NOP();
@@ -564,22 +628,52 @@ void definir_numero (uint8_t numero){
 	}// Fin del switch-case
 
 }
-uint8_t cambioNumero (uint8_t numeroDisplay){
-	uint8_t valor_DT = 0;
+uint16_t cambioNumero (uint16_t numeroLocal){
+	//Creamos una variable en la cual guardamos el valor del pin
+	//donde está el DT
+	uint32_t valor_DT = 0;
+	//Cargamos el valor del pin en la variable
 	valor_DT = gpio_ReadPin(&gpioDT);
+	//Comparamos las posibles opciones
 	switch (valor_DT){
+	//Cuando el pin DT está en o
 	case 0: {
-		numeroDisplay ++;
-		return numeroDisplay;
+		//Nos aseguramos de que el numeroDisplay no vaya a ser menor que cero
+		if (numeroLocal==0){
+			//Lo devolvemos a 4095
+			numeroLocal =4095;
+			//Retornamos el valor numeroLocal
+			return numeroLocal;
+		}
+		else {
+			//Le restamos a numeroDisplay una unidad
+			numeroLocal --;
+			//Retornamos el valor numeroLocal
+			return numeroLocal;
+		}
 		break;
 	}
+
 	case 1: {
-		numeroDisplay --;
-		return numeroDisplay;
+		//Nos aseguramos de que el numeroDisplay no vaya a ser mayor ue 4095
+		if (numeroLocal>=4095){
+			//Devolvemos el valor de numeroDisplay a 0
+			numeroLocal=0;
+			//Retornamos el valor numeroLocal
+			return numeroLocal;
+		}
+		else {
+			//Le sumamos una unidad a la variable numeroDisplay
+			numeroLocal ++;
+			//Retornamos el valor numeroLocal
+			return numeroLocal;
+		}
 		break;
+
 	}
 	default:{
-		return numeroDisplay;
+		//Retornamos el valor numeroLocal
+		return numeroLocal;
 		break;
 	}
 	}
@@ -589,7 +683,7 @@ uint8_t cambioNumero (uint8_t numeroDisplay){
  * Timer que controla el blinky
  */
 void timer2_Callback(void){
-	gpio_TooglePin(&blinky);
+	fsm.estado = Blinky;
 }
 /*
  * Timer que controla el refresh
@@ -597,25 +691,29 @@ void timer2_Callback(void){
 void timer3_Callback(void){
 	digito +=1;
 	//Debemos cersiorarnos de que el digito que queremos encender no tenga un
-	//valor mayor a 3 (ya que solo tenemos 4 digitos
+	//valor mayor a 3 (ya que solo tenemos 4 digitos)
 	if (digito >= 4){
 		digito=0;
 	}
 }
 
 void callback_ExtInt3 (void){
-	estado = cambiar_numero;
+	//Cambiamos el estado a "cambiar numero"
+	fsm.estado = cambiar_numero;
 }
 
 void callback_ExtInt5 (void){
-	estado = aumentar_tasa_refresco;
+	//cambiamos el estado a "aumentar tasa de refresco"
+	fsm.estado = aumentar_tasa_refresco;
 }
 void callback_ExtInt2 (void){
-	estado = disminuir_tasa_refresco;
+	//Cambiamos el estado a "disminuir tasa de refresco"
+	fsm.estado = disminuir_tasa_refresco;
 }
 
 void callback_ExtInt8 (void){
-	estado = resetear;
+	//Cambiamos el estado a resetear
+	fsm.estado = resetear;
 }
 
 /*

@@ -486,10 +486,10 @@ static void exti_select_edge(EXTI_Handler_t *extiConfig){
 
 	if(extiConfig->edgeType == EXTERNAL_INTERRUPT_FALLING_EDGE){
 		/* Falling Trigger selection register*/
-		EXTI->FTSR =(1<< extiConfig->pGPIOHandler->pinConfig.GPIO_PinNumber);
+		EXTI->FTSR |=(1<< extiConfig->pGPIOHandler->pinConfig.GPIO_PinNumber);
 	}
 	else{
-		EXTI->RTSR =(1<< extiConfig->pGPIOHandler->pinConfig.GPIO_PinNumber);
+		EXTI->RTSR |=(1<< extiConfig->pGPIOHandler->pinConfig.GPIO_PinNumber);
 	}
 }
 /*
@@ -499,7 +499,7 @@ static void exti_select_edge(EXTI_Handler_t *extiConfig){
 static void exti_config_interrupt(EXTI_Handler_t *extiConfig){
 	/* 6.0 Activamos la interrupción del canal que estamos configurando */
 		// Interrupt Mask register
-		EXTI->IMR= (1<< extiConfig->pGPIOHandler->pinConfig.GPIO_PinNumber);
+		EXTI->IMR |= (1<< extiConfig->pGPIOHandler->pinConfig.GPIO_PinNumber);
 
 		/* 6.1 Matriculamos la interrupción en el NVIC para el canal correspondiente,
 		 * donde el canal 0 corresponde al EXTI_0, canal 1 al EXTI_1, etc.
