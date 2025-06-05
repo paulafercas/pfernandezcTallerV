@@ -7,7 +7,7 @@
  */
 #include <stdint.h>
 #include <stm32f4xx.h>
-#include "stm32_assert.h"
+//#include "stm32_assert.h"
 #include "gpio_driver_hal.h"
 #include "timer_driver_hal.h"
 #include "exti_driver_hal.h"
