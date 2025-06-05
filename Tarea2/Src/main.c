@@ -260,13 +260,15 @@ void configurarExti (void){
 	gpioCLK.pinConfig.GPIO_PinMode			= GPIO_MODE_IN;
 	gpioCLK.pinConfig.GPIO_PinPuPdControl	= GPIO_PUPDR_NOTHING;
 
-	extiCLK.pGPIOHandler					= &gpioCLK;
-	extiCLK.edgeType 						= EXTERNAL_INTERRUPT_RISING_EDGE;
+	//extiCLK.pGPIOHandler					= &gpioCLK;
+	//extiCLK.edgeType 						= EXTERNAL_INTERRUPT_RISING_EDGE;
 
 	gpioDT.pGPIOx							= GPIOC;
 	gpioDT.pinConfig.GPIO_PinNumber			= PIN_9;
 	gpioDT.pinConfig.GPIO_PinMode			= GPIO_MODE_IN;
 	gpioDT.pinConfig.GPIO_PinPuPdControl	= GPIO_PUPDR_NOTHING;
+	extiDT.pGPIOHandler						= &gpioDT;
+	extiDT.edgeType 						= EXTERNAL_INTERRUPT_RISING_EDGE;
 
 	gpioSW.pGPIOx							= GPIOB;
 	gpioSW.pinConfig.GPIO_PinNumber			= PIN_8;
@@ -301,7 +303,8 @@ void configurarExti (void){
 	gpio_Config (&gpioDisminuirRefresh);
 
 	/*Cargamos la configuracion para los exti*/
-	exti_Config (&extiCLK);
+	//exti_Config (&extiCLK);
+	exti_Config (&extiDT);
 	exti_Config (&extiSW);
 	exti_Config (&extiAumentarRefresh);
 	exti_Config (&extiDisminuirRefresh);
@@ -608,28 +611,12 @@ uint16_t cambioNumero (uint16_t numeroLocal){
 	//donde está el DT
 	uint32_t valor_DT = 0;
 	//Cargamos el valor del pin en la variable
-	valor_DT = gpio_ReadPin(&gpioDT);
+	valor_DT = gpio_ReadPin(&gpioCLK);
+	//valor_DT = gpio_ReadPin(&gpioDT);
 	//Comparamos las posibles opciones
 	switch (valor_DT){
 	//Cuando el pin DT está en o
 	case 0: {
-		//Nos aseguramos de que el numeroDisplay no vaya a ser menor que cero
-		if (numeroLocal==0){
-			//Lo devolvemos a 4095
-			numeroLocal =4095;
-			//Retornamos el valor numeroLocal
-			return numeroLocal;
-		}
-		else {
-			//Le restamos a numeroDisplay una unidad
-			numeroLocal --;
-			//Retornamos el valor numeroLocal
-			return numeroLocal;
-		}
-		break;
-	}
-
-	case 1: {
 		//Nos aseguramos de que el numeroDisplay no vaya a ser mayor ue 4095
 		if (numeroLocal>=4095){
 			//Devolvemos el valor de numeroDisplay a 0
@@ -640,6 +627,24 @@ uint16_t cambioNumero (uint16_t numeroLocal){
 		else {
 			//Le sumamos una unidad a la variable numeroDisplay
 			numeroLocal ++;
+			//Retornamos el valor numeroLocal
+			return numeroLocal;
+		}
+		break;
+
+	}
+
+	case 1: {
+		//Nos aseguramos de que el numeroDisplay no vaya a ser menor que cero
+		if (numeroLocal==0){
+			//Lo devolvemos a 4095
+			numeroLocal =4095;
+			//Retornamos el valor numeroLocal
+			return numeroLocal;
+		}
+		else {
+			//Le restamos a numeroDisplay una unidad
+			numeroLocal --;
 			//Retornamos el valor numeroLocal
 			return numeroLocal;
 		}
@@ -672,7 +677,12 @@ void timer3_Callback(void){
 	}
 }
 
-void callback_ExtInt3 (void){
+//void callback_ExtInt3 (void){
+	//Cambiamos el estado a "cambiar numero"
+	//fsm.estado = cambiar_numero;
+//}
+
+void callback_ExtInt9 (void){
 	//Cambiamos el estado a "cambiar numero"
 	fsm.estado = cambiar_numero;
 }
