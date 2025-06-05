@@ -66,7 +66,6 @@ void Error_Handler(void);
 #define disminuirTasaRefresco_EXTI_IRQn EXTI2_IRQn
 #define CLK_Pin GPIO_PIN_3
 #define CLK_GPIO_Port GPIOC
-#define CLK_EXTI_IRQn EXTI3_IRQn
 #define USART_TX_Pin GPIO_PIN_2
 #define USART_TX_GPIO_Port GPIOA
 #define USART_RX_Pin GPIO_PIN_3
@@ -84,6 +83,7 @@ void Error_Handler(void);
 #define segmento7_GPIO_Port GPIOC
 #define DT_Pin GPIO_PIN_9
 #define DT_GPIO_Port GPIOC
+#define DT_EXTI_IRQn EXTI9_5_IRQn
 #define alimentacion3_Pin GPIO_PIN_11
 #define alimentacion3_GPIO_Port GPIOA
 #define segmento10_Pin GPIO_PIN_12

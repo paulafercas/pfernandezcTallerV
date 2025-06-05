@@ -617,7 +617,7 @@ uint16_t cambioNumero (uint16_t numeroLocal){
 	switch (valor_DT){
 	//Cuando el pin DT está en o
 	case 0: {
-		//Nos aseguramos de que el numeroDisplay no vaya a ser mayor ue 4095
+		//Nos aseguramos de que el numeroDisplay no vaya a ser mayor que 4095
 		if (numeroLocal>=4095){
 			//Devolvemos el valor de numeroDisplay a 0
 			numeroLocal=0;

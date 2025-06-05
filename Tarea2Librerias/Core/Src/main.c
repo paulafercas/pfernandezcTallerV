@@ -284,7 +284,7 @@ static void MX_TIM3_Init(void)
   htim3.Instance = TIM3;
   htim3.Init.Prescaler = 16000-1;
   htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim3.Init.Period = 2;
+  htim3.Init.Period = 20;
   htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim3) != HAL_OK)
@@ -389,11 +389,17 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_MEDIUM;
   HAL_GPIO_Init(blinky_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : disminuirTasaRefresco_Pin CLK_Pin */
-  GPIO_InitStruct.Pin = disminuirTasaRefresco_Pin|CLK_Pin;
+  /*Configure GPIO pins : disminuirTasaRefresco_Pin DT_Pin */
+  GPIO_InitStruct.Pin = disminuirTasaRefresco_Pin|DT_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : CLK_Pin */
+  GPIO_InitStruct.Pin = CLK_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(CLK_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pin : aumentarTasaRefresco_Pin */
   GPIO_InitStruct.Pin = aumentarTasaRefresco_Pin;
@@ -416,12 +422,6 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_MEDIUM;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
-
-  /*Configure GPIO pin : DT_Pin */
-  GPIO_InitStruct.Pin = DT_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(DT_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pins : alimentacion3_Pin segmento10_Pin */
   GPIO_InitStruct.Pin = alimentacion3_Pin|segmento10_Pin;
@@ -446,9 +446,6 @@ static void MX_GPIO_Init(void)
   /* EXTI interrupt init*/
   HAL_NVIC_SetPriority(EXTI2_IRQn, 0, 0);
   HAL_NVIC_EnableIRQ(EXTI2_IRQn);
-
-  HAL_NVIC_SetPriority(EXTI3_IRQn, 0, 0);
-  HAL_NVIC_EnableIRQ(EXTI3_IRQn);
 
   HAL_NVIC_SetPriority(EXTI9_5_IRQn, 0, 0);
   HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
@@ -758,28 +755,11 @@ uint16_t cambioNumero (uint16_t numeroLocal){
 	//donde está el DT
 	uint32_t valor_DT = 0;
 	//Cargamos el valor del pin en la variable
-	valor_DT = HAL_GPIO_ReadPin(DT_GPIO_Port, DT_Pin);
+	valor_DT = HAL_GPIO_ReadPin(CLK_GPIO_Port, CLK_Pin);
 	//Comparamos las posibles opciones
 	switch (valor_DT){
 	//Cuando el pin DT está en o
 	case 0: {
-		//Nos aseguramos de que el numeroDisplay no vaya a ser menor que cero
-		if (numeroLocal==0){
-			//Lo devolvemos a 4095
-			numeroLocal =4095;
-			//Retornamos el valor numeroLocal
-			return numeroLocal;
-		}
-		else {
-			//Le restamos a numeroDisplay una unidad
-			numeroLocal --;
-			//Retornamos el valor numeroLocal
-			return numeroLocal;
-		}
-		break;
-	}
-
-	case 1: {
 		//Nos aseguramos de que el numeroDisplay no vaya a ser mayor ue 4095
 		if (numeroLocal>=4095){
 			//Devolvemos el valor de numeroDisplay a 0
@@ -790,6 +770,23 @@ uint16_t cambioNumero (uint16_t numeroLocal){
 		else {
 			//Le sumamos una unidad a la variable numeroDisplay
 			numeroLocal ++;
+			//Retornamos el valor numeroLocal
+			return numeroLocal;
+		}
+		break;
+	}
+
+	case 1: {
+		//Nos aseguramos de que el numeroDisplay no vaya a ser menor que cero
+		if (numeroLocal==0){
+			//Lo devolvemos a 4095
+			numeroLocal =4095;
+			//Retornamos el valor numeroLocal
+			return numeroLocal;
+		}
+		else {
+			//Le restamos a numeroDisplay una unidad
+			numeroLocal --;
 			//Retornamos el valor numeroLocal
 			return numeroLocal;
 		}
@@ -819,7 +816,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 
 }
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
-	if (GPIO_Pin == GPIO_PIN_3){
+	if (GPIO_Pin == GPIO_PIN_9){
 		//Cambiamos el estado a "cambiar numero"
 		fsm.estado = cambiar_numero;
 	}
