@@ -66,7 +66,7 @@ Timer_Handler_t blinkTimer = {0};
 Timer_Handler_t refreshTimer ={0};
 
 //Inicializamos la variable que va a modificar la tasa de refresco
-//Comenzamos con un periodo de 250ms
+//Comenzamos con un periodo de 20ms
 uint16_t tasa_refresco = 20;
 
 /*
@@ -89,13 +89,6 @@ void configurarTimers ();
 void configurarExti ();
 //Funcion para cambiar numero según el Encoder
 uint16_t cambioNumero (uint16_t numeroDisplay);
-//Funcion para encender inicialmente el Display en ceros
-//void ceros (void);
-/*
- * Funcion para poner todo en ceros
- * void ceros (void);
- */
-
 
 /*
  * The main function, where everything happens.
@@ -222,23 +215,6 @@ void configurar7Segmentos (void){
 		gpio_Config(&alimentacion3);
 }
 
-//Encendemos incicialmente el numero 0 en los 4 digitos*/
-//ceros ();
-/*void ceros (void) {
-		gpio_WritePin (&segmento1, RESET);
-		gpio_WritePin (&segmento2, RESET);
-		gpio_WritePin (&segmento3, SET);
-		gpio_WritePin (&segmento4, RESET);
-		gpio_WritePin (&segmento5, SET);
-		gpio_WritePin (&segmento7, RESET);
-		gpio_WritePin (&segmento10, RESET);
-		gpio_WritePin (&segmento11, RESET);
-		gpio_WritePin (&alimentacion0, SET);
-		gpio_WritePin (&alimentacion1, SET);
-		gpio_WritePin (&alimentacion2, SET);
-		gpio_WritePin (&alimentacion3, SET);
-
-}*/
 void configurarTimers (void){
 
 	/* Configuramos el pin para el BLinky*/
