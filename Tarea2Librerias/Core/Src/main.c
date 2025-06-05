@@ -361,7 +361,7 @@ static void MX_GPIO_Init(void)
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOC, alimentacion0_Pin|alimentacion1_Pin|alimentacion2_Pin|segmento7_Pin
-                          |DT_Pin|segmento2_Pin|segmento3_Pin|segmento4_Pin, GPIO_PIN_RESET);
+                          |segmento2_Pin|segmento3_Pin|segmento4_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(blinky_GPIO_Port, blinky_Pin, GPIO_PIN_RESET);
@@ -401,10 +401,10 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(aumentarTasaRefresco_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : alimentacion1_Pin alimentacion2_Pin segmento7_Pin DT_Pin
-                           segmento2_Pin segmento3_Pin segmento4_Pin */
-  GPIO_InitStruct.Pin = alimentacion1_Pin|alimentacion2_Pin|segmento7_Pin|DT_Pin
-                          |segmento2_Pin|segmento3_Pin|segmento4_Pin;
+  /*Configure GPIO pins : alimentacion1_Pin alimentacion2_Pin segmento7_Pin segmento2_Pin
+                           segmento3_Pin segmento4_Pin */
+  GPIO_InitStruct.Pin = alimentacion1_Pin|alimentacion2_Pin|segmento7_Pin|segmento2_Pin
+                          |segmento3_Pin|segmento4_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_MEDIUM;
@@ -416,6 +416,12 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_MEDIUM;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : DT_Pin */
+  GPIO_InitStruct.Pin = DT_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(DT_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pins : alimentacion3_Pin segmento10_Pin */
   GPIO_InitStruct.Pin = alimentacion3_Pin|segmento10_Pin;
@@ -752,7 +758,7 @@ uint16_t cambioNumero (uint16_t numeroLocal){
 	//donde está el DT
 	uint32_t valor_DT = 0;
 	//Cargamos el valor del pin en la variable
-	valor_DT = HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_9);
+	valor_DT = HAL_GPIO_ReadPin(DT_GPIO_Port, DT_Pin);
 	//Comparamos las posibles opciones
 	switch (valor_DT){
 	//Cuando el pin DT está en o
