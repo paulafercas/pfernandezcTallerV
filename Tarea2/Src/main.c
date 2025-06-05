@@ -98,7 +98,6 @@ int main(void)
 	configurar7Segmentos();
 	configurarTimers ();
 	configurarExti ();
-	//ceros();
 	fsm.estado = refrescar;
 
     /* Loop forever */

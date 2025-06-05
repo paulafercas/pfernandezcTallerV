@@ -166,10 +166,11 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    /* USER CODE END WHILE */
 	  if(fsm.estado != IDLE){
 		  maquinaEstados(numeroDisplay,digito);
 	  }
+    /* USER CODE END WHILE */
+
     /* USER CODE BEGIN 3 */
   }
   return 0;
@@ -283,7 +284,7 @@ static void MX_TIM3_Init(void)
   htim3.Instance = TIM3;
   htim3.Init.Prescaler = 16000-1;
   htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim3.Init.Period = 20-1;
+  htim3.Init.Period = 2;
   htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim3) != HAL_OK)
@@ -366,10 +367,10 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_WritePin(blinky_GPIO_Port, blinky_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOA, LD2_Pin|alimentacion3_Pin|segmento10_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOB, segmento11_Pin|segmento5_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, segmento11_Pin|segmento5_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOA, alimentacion3_Pin|segmento10_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(segmento1_GPIO_Port, segmento1_Pin, GPIO_PIN_RESET);
@@ -394,12 +395,11 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : LD2_Pin alimentacion3_Pin segmento10_Pin */
-  GPIO_InitStruct.Pin = LD2_Pin|alimentacion3_Pin|segmento10_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  /*Configure GPIO pin : aumentarTasaRefresco_Pin */
+  GPIO_InitStruct.Pin = aumentarTasaRefresco_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_MEDIUM;
-  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+  HAL_GPIO_Init(aumentarTasaRefresco_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pins : alimentacion1_Pin alimentacion2_Pin segmento7_Pin DT_Pin
                            segmento2_Pin segmento3_Pin segmento4_Pin */
@@ -417,6 +417,13 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_MEDIUM;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
+  /*Configure GPIO pins : alimentacion3_Pin segmento10_Pin */
+  GPIO_InitStruct.Pin = alimentacion3_Pin|segmento10_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_MEDIUM;
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
   /*Configure GPIO pin : segmento1_Pin */
   GPIO_InitStruct.Pin = segmento1_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
@@ -424,11 +431,11 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_MEDIUM;
   HAL_GPIO_Init(segmento1_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : SW_Pin aumentarTasaRefresco_Pin */
-  GPIO_InitStruct.Pin = SW_Pin|aumentarTasaRefresco_Pin;
+  /*Configure GPIO pin : SW_Pin */
+  GPIO_InitStruct.Pin = SW_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+  HAL_GPIO_Init(SW_GPIO_Port, &GPIO_InitStruct);
 
   /* EXTI interrupt init*/
   HAL_NVIC_SetPriority(EXTI2_IRQn, 0, 0);
@@ -516,11 +523,11 @@ void maquinaEstados(uint16_t numeroLocal, uint8_t digito){
 	case aumentar_tasa_refresco:{
 		// Apagamos el Timer.
 		HAL_TIM_Base_Stop_IT(&htim3);
-		//Nos aseguramos de que la tasa de refresco no vaya a sea menor a 4ms
+		//Nos aseguramos de que la tasa de refresco no vaya a sea menor a 1ms
 		if (tasa_refresco<=1){
 			tasa_refresco = 20;
 		}
-		//Disminuimoss en 1 ms la tasa de refresco
+		//Disminuimos a la mitad ms la tasa de refresco
 		else {
 			tasa_refresco/=2;
 		}
@@ -609,7 +616,7 @@ void digito_encendido(uint8_t digito, uint8_t unidad,uint8_t decena, uint8_t cen
 		//Encendemos los pines correspondientes al numero que se desea
 		definir_numero (milUnidad);
 		//Encedemos el digito (1) donde se va a mostrar el numero seleccionado anteriormente
-		HAL_GPIO_WritePin(alimentacion3_GPIO_Port, alimentacion3_Pin, GPIO_PIN_SET);
+		HAL_GPIO_WritePin(alimentacion3_GPIO_Port, alimentacion3_Pin, GPIO_PIN_RESET);
 		break;
 	}
 	default:{
@@ -805,6 +812,25 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 	}
 
 }
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
+	if (GPIO_Pin == GPIO_PIN_3){
+		//Cambiamos el estado a "cambiar numero"
+		fsm.estado = cambiar_numero;
+	}
+	else if (GPIO_Pin == GPIO_PIN_5){
+		//cambiamos el estado a "aumentar tasa de refresco"
+		fsm.estado = aumentar_tasa_refresco;
+	}
+	else if (GPIO_Pin == GPIO_PIN_2){
+		//Cambiamos el estado a "disminuir tasa de refresco"
+		fsm.estado = disminuir_tasa_refresco;
+	}
+	else if (GPIO_Pin == GPIO_PIN_8){
+		//Cambiamos el estado a resetear
+		fsm.estado = resetear;
+	}
+}
+
 /* USER CODE END 4 */
 
 /**

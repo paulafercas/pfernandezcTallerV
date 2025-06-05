@@ -71,8 +71,9 @@ void Error_Handler(void);
 #define USART_TX_GPIO_Port GPIOA
 #define USART_RX_Pin GPIO_PIN_3
 #define USART_RX_GPIO_Port GPIOA
-#define LD2_Pin GPIO_PIN_5
-#define LD2_GPIO_Port GPIOA
+#define aumentarTasaRefresco_Pin GPIO_PIN_5
+#define aumentarTasaRefresco_GPIO_Port GPIOA
+#define aumentarTasaRefresco_EXTI_IRQn EXTI9_5_IRQn
 #define alimentacion1_Pin GPIO_PIN_5
 #define alimentacion1_GPIO_Port GPIOC
 #define segmento11_Pin GPIO_PIN_12
@@ -106,9 +107,6 @@ void Error_Handler(void);
 #define SW_Pin GPIO_PIN_8
 #define SW_GPIO_Port GPIOB
 #define SW_EXTI_IRQn EXTI9_5_IRQn
-#define aumentarTasaRefresco_Pin GPIO_PIN_9
-#define aumentarTasaRefresco_GPIO_Port GPIOB
-#define aumentarTasaRefresco_EXTI_IRQn EXTI9_5_IRQn
 
 /* USER CODE BEGIN Private defines */
 
