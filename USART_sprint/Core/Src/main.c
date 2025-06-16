@@ -47,7 +47,8 @@ UART_HandleTypeDef huart2;
 /* USER CODE BEGIN PV */
 uint8_t bufferMsg [128] = {0};
 uint8_t arraySize =0;
-uint8_t stringLenghht =0;
+uint8_t stringLength =0;
+uint8_t contador =0;
 
 /* USER CODE END PV */
 
@@ -101,16 +102,39 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  HAL_UART_Transmit(&huart2, (const uint8_t *)"Hola mundo!", 10, 1000);
+  HAL_UART_Transmit(&huart2, (const uint8_t *)"Hola mundo!\n",12, 10);
 
   //Sprintf recibe en orden:
   // 1). Puntero al buffer donde se almacena la informacion
   // 2). Formato para almacenar la informacion
   // 3). Los datos (en orden) que están descritos en el formato
-  sprintf ( (char *)bufferMsg,"Hola mundo!!");
+  sprintf ( (char *)bufferMsg,"Hola mundo!!\n");
+
+  //Encontrando el temaño del arreglo
+  arraySize = sizeof(bufferMsg);
+  // Encontrando el tamaño del string
+  stringLength = strlen((char *)bufferMsg);
 
   // Imprimiendo el segundo mensaje
-  HAL_UART_Transmit(&huart2, bufferMsg, 12, 1000);
+  HAL_UART_Transmit(&huart2, bufferMsg, 13, 1000);
+
+  //Actualizando al buffer con nuevos datos
+  sprintf ((char*)bufferMsg, "Prueba de sonido %u !!\n", contador);
+
+  //Imprimiendo tercer mensaje
+  HAL_UART_Transmit(&huart2,bufferMsg,strlen((char *)bufferMsg) , 1000);
+
+  //Imprimiendo variables
+  contador++;
+  sprintf((char *)bufferMsg, "**Prueba de sonido %u !!\n", contador);
+  HAL_UART_Transmit(&huart2,bufferMsg,strlen((char *)bufferMsg) , 1000);
+
+  //Un ciclo para imprimir de forma dinámica el cambio de una variable
+  for (contador = 0; contador <100; contador +=3){
+	  sprintf((char *)bufferMsg, "**Prueba de sonido %u !!\n", contador);
+	  HAL_UART_Transmit(&huart2,bufferMsg,strlen((char *)bufferMsg) , 1000);
+  }
+  __NOP();
   while (1)
   {
     /* USER CODE END WHILE */
@@ -184,7 +208,7 @@ static void MX_TIM2_Init(void)
   htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
   htim2.Init.Period = 250-1;
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
-  htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
   if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
   {
     Error_Handler();
