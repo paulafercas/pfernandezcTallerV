@@ -41,7 +41,7 @@
 
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN PV */
-
+extern uint16_t dmaEventCounter;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -210,7 +210,7 @@ void EXTI2_IRQHandler(void)
   /* USER CODE END EXTI2_IRQn 0 */
   HAL_GPIO_EXTI_IRQHandler(povButton_Pin);
   /* USER CODE BEGIN EXTI2_IRQn 1 */
-
+  HAL_GPIO_TogglePin(redLed_GPIO_Port, redLed_Pin);
   /* USER CODE END EXTI2_IRQn 1 */
 }
 
@@ -266,7 +266,7 @@ void DMA2_Stream0_IRQHandler(void)
   /* USER CODE END DMA2_Stream0_IRQn 0 */
   HAL_DMA_IRQHandler(&hdma_adc1);
   /* USER CODE BEGIN DMA2_Stream0_IRQn 1 */
-
+  dmaEventCounter++;
   /* USER CODE END DMA2_Stream0_IRQn 1 */
 }
 

@@ -156,7 +156,9 @@ int main(void)
 			  }
 			  // Anulamos el caracter para que no se vuelva a entrar a este bloque hasta que
 			  // no llegue otro caracter
+
 			  auxReception= '\0';
+		  }
 	  }
   }
   /* USER CODE END 3 */
@@ -463,7 +465,26 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+// Callback generico para los timers...
+void HAL_TIM_PeriodElapsedCallback (TIM_HandleTypeDef *htim){
+	//Verificando que el TIM2 es el que lanza la interrupcion
+	if (htim->Instance == TIM2){
+		HAL_GPIO_TogglePin(userLed_GPIO_Port, userLed_Pin);
+	}
+}
 
+//Callback generico para la recepcion serial
+void HAL_UART_RxCplCallback (UART_HandleTypeDef *huart){
+	//Verificando que es el USART2
+	if (huart ->Instance ==USART2){
+		HAL_UART_Receive_IT(huart, &auxReception, 1);
+		__NOP();
+	}
+}
+
+void HAL_ADC_ConvCplCallback (ADC_HandleTypeDef *hadc){
+	__NOP();
+}
 /* USER CODE END 4 */
 
 /**
