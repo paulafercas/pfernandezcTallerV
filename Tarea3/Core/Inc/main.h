@@ -31,11 +31,26 @@ extern "C" {
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "stdio.h"
+#include "stdint.h"
+#include "string.h"
 /* USER CODE END Includes */
 
 /* Exported types ------------------------------------------------------------*/
 /* USER CODE BEGIN ET */
+//Definimos los estados que puede tener la maquina de estados
+typedef enum{
+	menuInicial,
+	encenderLed,
+	Blinky,
+	IDLE
+}posiblesEstados;
+
+//Creamos la estructura donde se va a apuntar al estado requerido
+typedef struct
+{
+	posiblesEstados estado;
+}estadoActual;
 
 /* USER CODE END ET */
 
@@ -57,14 +72,12 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
-#define B1_Pin GPIO_PIN_13
-#define B1_GPIO_Port GPIOC
+#define blinky_Pin GPIO_PIN_1
+#define blinky_GPIO_Port GPIOH
 #define USART_TX_Pin GPIO_PIN_2
 #define USART_TX_GPIO_Port GPIOA
 #define USART_RX_Pin GPIO_PIN_3
 #define USART_RX_GPIO_Port GPIOA
-#define LD2_Pin GPIO_PIN_5
-#define LD2_GPIO_Port GPIOA
 #define LedRojo_Pin GPIO_PIN_6
 #define LedRojo_GPIO_Port GPIOA
 #define LedVerde_Pin GPIO_PIN_7
