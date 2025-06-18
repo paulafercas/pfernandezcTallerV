@@ -45,6 +45,8 @@ estadoActual fsm ={0};
 TIM_HandleTypeDef htim2;
 
 UART_HandleTypeDef huart2;
+DMA_HandleTypeDef hdma_usart2_tx;
+DMA_HandleTypeDef hdma_usart2_rx;
 
 /* USER CODE BEGIN PV */
 //Creamos un Buffer donde se va a almacenar el mensaje que se transmite
@@ -57,6 +59,7 @@ uint8_t stringLength =0;
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
+static void MX_DMA_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_TIM2_Init(void);
 /* USER CODE BEGIN PFP */
@@ -86,7 +89,8 @@ int main(void)
   HAL_Init();
 
   /* USER CODE BEGIN Init */
-  fsm.estado = IDLE;
+  fsm.estado = menuInicial;
+  maquinaEstados();
   /* USER CODE END Init */
 
   /* Configure the system clock */
@@ -98,9 +102,11 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_DMA_Init();
   MX_USART2_UART_Init();
   MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
+
   //Inicializamos el timer 2 y sus interrupciones
   HAL_TIM_Base_Start_IT(&htim2);
 
@@ -110,9 +116,9 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  if (fsm.estado != IDLE){
-		  maquinaEstados();
-	  }
+
+	  maquinaEstados();
+
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -240,6 +246,25 @@ static void MX_USART2_UART_Init(void)
 }
 
 /**
+  * Enable DMA controller clock
+  */
+static void MX_DMA_Init(void)
+{
+
+  /* DMA controller clock enable */
+  __HAL_RCC_DMA1_CLK_ENABLE();
+
+  /* DMA interrupt init */
+  /* DMA1_Stream5_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Stream5_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Stream5_IRQn);
+  /* DMA1_Stream6_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Stream6_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Stream6_IRQn);
+
+}
+
+/**
   * @brief GPIO Initialization Function
   * @param None
   * @retval None
@@ -293,9 +318,10 @@ static void MX_GPIO_Init(void)
 void maquinaEstados (void){
 	switch (fsm.estado){
 	case menuInicial:{
-		sprintf((char *) bufferMsg, "¡Hola! ¿Qué quieres hacer?\n1. Oprime 1 para cambiar la frecuencia del led de estado 2. Oprime 2 para encender o apagar un Led\n ");
+		sprintf((char *) bufferMsg, "¡Hola! ¿Qué quieres hacer?\n1. Oprime 1 para cambiar la frecuencia del led de estado \n2. Oprime 2 para encender o apagar un Led\n ");
 		stringLength = strlen((char *)bufferMsg);
-		HAL_UART_Transmit_IT(&huart2, bufferMsg, stringLength);
+		HAL_UART_Transmit(&huart2, bufferMsg, stringLength,1000);
+		fsm.estado = IDLE;
 		break;
 	}
 	case encenderLed: {
@@ -305,7 +331,7 @@ void maquinaEstados (void){
 		//Cambiamos de estado el led del blinky
 		HAL_GPIO_TogglePin(blinky_GPIO_Port, blinky_Pin);
 		//Volvemos al estado inicial
-		fsm.estado = menuInicial;
+		fsm.estado = IDLE;
 		break;
 	}
 	case IDLE:{
@@ -324,6 +350,16 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 	if (htim->Instance ==TIM2){
 		fsm.estado = Blinky;
 	}
+}
+
+//Llamamos a la funcion Callback para el USART2
+void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
+{
+    if (huart->Instance == USART2)
+    {
+        // Transmisión finalizada.
+        fsm.estado = IDLE;
+    }
 }
 
 /* USER CODE END 4 */
