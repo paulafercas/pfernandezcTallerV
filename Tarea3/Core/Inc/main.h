@@ -34,6 +34,8 @@ extern "C" {
 #include "stdio.h"
 #include "stdint.h"
 #include "string.h"
+#include <stdlib.h>
+
 /* USER CODE END Includes */
 
 /* Exported types ------------------------------------------------------------*/
@@ -44,6 +46,7 @@ typedef enum{
 	encenderLed,
 	Blinky,
 	cambiarBlinky,
+	comandoInvalido,
 	IDLE
 }posiblesEstados;
 
@@ -52,6 +55,18 @@ typedef struct
 {
 	posiblesEstados estado;
 }estadoActual;
+
+//Creamos una estructura donde se define los posibles estados de recepción
+typedef enum{
+	esperandoComando,
+	esperandoDato,
+	esperandoRespuestaFinal,
+}estadoRecepcion;
+
+typedef struct
+{
+	estadoRecepcion recept;
+}recepcion;
 
 /* USER CODE END ET */
 

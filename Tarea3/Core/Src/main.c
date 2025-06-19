@@ -33,6 +33,8 @@
 /* USER CODE BEGIN PD */
 //Inicializamos la variable que va a guardar el estado de la maquina
 estadoActual fsm ={0};
+//Inicializamos la variable que va a guardar el estado de la recepcion
+recepcion rx ={0};
 
 /* USER CODE END PD */
 
@@ -54,9 +56,9 @@ uint8_t bufferMsg [200] ={0};
 //Creamos una variable que va a almacenar el tamaño del string del buffer
 uint8_t stringLength =0;
 //Creamos una variable donde vamos a almacenar las comandos de entrada
-uint8_t auxReception =0;
+uint8_t auxReception [200]={0};
 //Variable donde almacenamos el periodo del BLinky
-uint8_t periodoBlinky =0;
+uint16_t periodoBlinky =0;
 //Varible donde guardamos respuesta binaria
 uint8_t respuestaBinaria =0;
 /* USER CODE END PV */
@@ -74,6 +76,8 @@ void maquinaEstados (void);
 void definirEstado (uint8_t comando);
 //Funcion para cambiar el periodo del LED
 void cambioPeriodo (void);
+//Funcion para la respuesta binaria
+void respuestaFinal (uint8_t respuesta);
 
 /* USER CODE END PFP */
 
@@ -126,7 +130,7 @@ int main(void)
   HAL_TIM_Base_Start_IT(&htim2);
 
   //Obtenemos el estado segun lo recibido
-  HAL_UART_Receive_DMA(&huart2, &auxReception, 1);
+  HAL_UART_Receive_IT(&huart2, auxReception, 1);
 
   /* USER CODE END 2 */
 
@@ -342,7 +346,6 @@ void maquinaEstados (void){
 		sprintf((char *) bufferMsg, "¡Hola! ¿Qué quieres hacer?\n- Oprime 1 para cambiar la frecuencia del led de estado \n- Oprime 2 para encender o apagar un Led\n ");
 		// Imprimimos el menu inicial
 		HAL_UART_Transmit(&huart2, bufferMsg, strlen((char *)bufferMsg),1000);
-		__NOP();
 		//Vamos al estado IDLE donde no se hace nada
 		fsm.estado = IDLE;
 		break;
@@ -353,7 +356,7 @@ void maquinaEstados (void){
 	case Blinky:{
 		//Cambiamos de estado el led del blinky
 		HAL_GPIO_TogglePin(blinky_GPIO_Port, blinky_Pin);
-		//Volvemos al estado inicial
+		//Volvemos al estado IDLE
 		fsm.estado = IDLE;
 		break;
 	}
@@ -361,13 +364,18 @@ void maquinaEstados (void){
 		cambioPeriodo();
 		//Volvemos al IDLE
 		fsm.estado = IDLE;
-
+		break;
+	}
+	case comandoInvalido:{
+		sprintf((char *)bufferMsg, "Comando inválido.\n");
+		HAL_UART_Transmit(&huart2, bufferMsg, strlen((char *)bufferMsg), 100);
+		rx.recept = esperandoComando;
 	}
 	case IDLE:{
 		break;
 	}
 	default:{
-		__NOP();
+
 		break;
 	}
 	}
@@ -376,16 +384,16 @@ void maquinaEstados (void){
 //Funcion para definir el estado en el que está la maquina segun el comando recibido
 void definirEstado (uint8_t comando){
 	switch (comando){
-	case 1:{
+	case '1':{
 		fsm.estado = cambiarBlinky;
 		break;
 	}
-	case 2:{
+	case '2':{
 		fsm.estado = encenderLed;
 		break;
 	}
 	default:{
-		__NOP();
+		fsm.estado = comandoInvalido;
 		break;
 	}
 	}
@@ -396,8 +404,9 @@ void cambioPeriodo (void){
 	sprintf ((char *)bufferMsg, "Escriba el valor del periodo que requiere\n");
 	//Imprimimos el mensaje
 	HAL_UART_Transmit(&huart2, bufferMsg, strlen((char*)bufferMsg), 1000);
-	//Asignamos el valor ingresado a la variable periodoBlinky
-	HAL_UART_Receive_DMA(&huart2, &periodoBlinky, 1);
+	//Asignamos el valor ingresado a la variable auxReception
+	HAL_UART_Receive(&huart2, auxReception, strlen((char*)auxReception), 2000);
+	periodoBlinky = atoi(( char *)auxReception);
 	// Apagamos el Timer.
 	HAL_TIM_Base_Stop_IT(&htim2);
 	//Le asignamos el valor del periodoBlinky a su registro ARR
@@ -407,22 +416,30 @@ void cambioPeriodo (void){
 	// Encendemos nuevamente el Timer
 	HAL_TIM_Base_Start_IT(&htim2);
 	//Le preguntamos al usuario si quiere hacer algo mas
-	sprintf ((char *)bufferMsg, "Oprima 1 si quiere realizar algo más ó 0 en caso contrario\n");
+	sprintf ((char *)bufferMsg, "Se ha cambiado el periodo del Blinky exitosamente. Oprima 1 si quiere realizar algo más ó 0 en caso contrario\n");
 	//Imprimimos el mensaje
 	HAL_UART_Transmit(&huart2, bufferMsg, strlen((char*)bufferMsg), 1000);
 	//Guardamos la respuesta en respuestaBinaria
-	HAL_UART_Receive_DMA(&huart2, &respuestaBinaria, 1);
-	switch (respuestaBinaria){
-	case 0:{
+	HAL_UART_Receive(&huart2, &respuestaBinaria, strlen((char*)auxReception),1);
+	respuestaFinal(respuestaBinaria);
+}
+
+void respuestaFinal (uint8_t respuesta){
+	switch (respuesta){
+	case '0':{
 		sprintf ((char *)bufferMsg, "Fue un gusto haber podido ayudarte, ¡Hasta pronto!\n");
 		//Imprimimos el mensaje
 		HAL_UART_Transmit(&huart2, bufferMsg, strlen((char*)bufferMsg), 1000);
+		break;
 	}
-	case 1:{
+	case '1':{
 		fsm.estado = menuInicial;
+		break;
+	}
+	default:{
+		__NOP();
 	}
 	}
-
 }
 
 //Hacemos uso de los callback necesarios
@@ -444,16 +461,17 @@ void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
 }
 
 //Llamamos a la funcion Callback para el comando que estamos recibiendo
-void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+/*void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
     if (huart->Instance == USART2)
     {
     	//Definimos el estado en el que estamos
-        definirEstado(auxReception);
+        definirEstado((char*)auxReception);
         // Reanudamosla recepción para el siguiente byte
-        HAL_UART_Receive_DMA(&huart2, &auxReception, 1);
+        HAL_UART_Receive(&huart2, auxReception,strlen((char *) auxReception), 2000);
     }
 }
+*/
 
 
 /* USER CODE END 4 */
