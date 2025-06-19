@@ -45,8 +45,8 @@ estadoActual fsm ={0};
 TIM_HandleTypeDef htim2;
 
 UART_HandleTypeDef huart2;
-DMA_HandleTypeDef hdma_usart2_tx;
 DMA_HandleTypeDef hdma_usart2_rx;
+DMA_HandleTypeDef hdma_usart2_tx;
 
 /* USER CODE BEGIN PV */
 //Creamos un Buffer donde se va a almacenar el mensaje que se transmite
@@ -54,6 +54,11 @@ uint8_t bufferMsg [200] ={0};
 //Creamos una variable que va a almacenar el tamaño del string del buffer
 uint8_t stringLength =0;
 //Creamos una variable donde vamos a almacenar las comandos de entrada
+uint8_t auxReception =0;
+//Variable donde almacenamos el periodo del BLinky
+uint8_t periodoBlinky =0;
+//Varible donde guardamos respuesta binaria
+uint8_t respuestaBinaria =0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -65,6 +70,10 @@ static void MX_TIM2_Init(void);
 /* USER CODE BEGIN PFP */
 //Creamos la funcion que va a realizar una tarea de acuerdo al estado de la maquina
 void maquinaEstados (void);
+//Funcion que define el estado de la maquina segun el comando recibido
+void definirEstado (uint8_t comando);
+//Funcion para cambiar el periodo del LED
+void cambioPeriodo (void);
 
 /* USER CODE END PFP */
 
@@ -89,8 +98,7 @@ int main(void)
   HAL_Init();
 
   /* USER CODE BEGIN Init */
-  fsm.estado = menuInicial;
-  maquinaEstados();
+
   /* USER CODE END Init */
 
   /* Configure the system clock */
@@ -107,8 +115,18 @@ int main(void)
   MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
 
+  //Inicializamos el estado de la maquina en menuInicial
+
+  //Este menu muestra las diferentes opciones que se pueden realizar en la tarea
+  fsm.estado = menuInicial;
+  //Llamamos la funcion de maquina de estados para que se pueda imprimir el menu
+  maquinaEstados();
+
   //Inicializamos el timer 2 y sus interrupciones
   HAL_TIM_Base_Start_IT(&htim2);
+
+  //Obtenemos el estado segun lo recibido
+  HAL_UART_Receive_DMA(&huart2, &auxReception, 1);
 
   /* USER CODE END 2 */
 
@@ -117,6 +135,7 @@ int main(void)
   while (1)
   {
 
+	  //Siempre vamos a llamar a la funcion maquina de estados
 	  maquinaEstados();
 
     /* USER CODE END WHILE */
@@ -315,12 +334,16 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+//Creamos la funcion maquina de estados donde se lleva a cabo cada una de las tareas
 void maquinaEstados (void){
 	switch (fsm.estado){
 	case menuInicial:{
-		sprintf((char *) bufferMsg, "¡Hola! ¿Qué quieres hacer?\n1. Oprime 1 para cambiar la frecuencia del led de estado \n2. Oprime 2 para encender o apagar un Led\n ");
-		stringLength = strlen((char *)bufferMsg);
-		HAL_UART_Transmit(&huart2, bufferMsg, stringLength,1000);
+		//Guardamos en nuestro Buffer el mensaje que queremos transmitir
+		sprintf((char *) bufferMsg, "¡Hola! ¿Qué quieres hacer?\n- Oprime 1 para cambiar la frecuencia del led de estado \n- Oprime 2 para encender o apagar un Led\n ");
+		// Imprimimos el menu inicial
+		HAL_UART_Transmit(&huart2, bufferMsg, strlen((char *)bufferMsg),1000);
+		__NOP();
+		//Vamos al estado IDLE donde no se hace nada
 		fsm.estado = IDLE;
 		break;
 	}
@@ -334,6 +357,12 @@ void maquinaEstados (void){
 		fsm.estado = IDLE;
 		break;
 	}
+	case cambiarBlinky:{
+		cambioPeriodo();
+		//Volvemos al IDLE
+		fsm.estado = IDLE;
+
+	}
 	case IDLE:{
 		break;
 	}
@@ -342,6 +371,58 @@ void maquinaEstados (void){
 		break;
 	}
 	}
+}
+
+//Funcion para definir el estado en el que está la maquina segun el comando recibido
+void definirEstado (uint8_t comando){
+	switch (comando){
+	case 1:{
+		fsm.estado = cambiarBlinky;
+		break;
+	}
+	case 2:{
+		fsm.estado = encenderLed;
+		break;
+	}
+	default:{
+		__NOP();
+		break;
+	}
+	}
+}
+
+void cambioPeriodo (void){
+	//Le pedimos al usuario el valor que quiere para el periodo
+	sprintf ((char *)bufferMsg, "Escriba el valor del periodo que requiere\n");
+	//Imprimimos el mensaje
+	HAL_UART_Transmit(&huart2, bufferMsg, strlen((char*)bufferMsg), 1000);
+	//Asignamos el valor ingresado a la variable periodoBlinky
+	HAL_UART_Receive_DMA(&huart2, &periodoBlinky, 1);
+	// Apagamos el Timer.
+	HAL_TIM_Base_Stop_IT(&htim2);
+	//Le asignamos el valor del periodoBlinky a su registro ARR
+	htim2.Init.Period = periodoBlinky;
+	//Guardamos las nuevas configuraciones
+	HAL_TIM_Base_Init(&htim2);
+	// Encendemos nuevamente el Timer
+	HAL_TIM_Base_Start_IT(&htim2);
+	//Le preguntamos al usuario si quiere hacer algo mas
+	sprintf ((char *)bufferMsg, "Oprima 1 si quiere realizar algo más ó 0 en caso contrario\n");
+	//Imprimimos el mensaje
+	HAL_UART_Transmit(&huart2, bufferMsg, strlen((char*)bufferMsg), 1000);
+	//Guardamos la respuesta en respuestaBinaria
+	HAL_UART_Receive_DMA(&huart2, &respuestaBinaria, 1);
+	switch (respuestaBinaria){
+	case 0:{
+		sprintf ((char *)bufferMsg, "Fue un gusto haber podido ayudarte, ¡Hasta pronto!\n");
+		//Imprimimos el mensaje
+		HAL_UART_Transmit(&huart2, bufferMsg, strlen((char*)bufferMsg), 1000);
+	}
+	case 1:{
+		fsm.estado = menuInicial;
+	}
+	}
+
 }
 
 //Hacemos uso de los callback necesarios
@@ -361,6 +442,19 @@ void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
         fsm.estado = IDLE;
     }
 }
+
+//Llamamos a la funcion Callback para el comando que estamos recibiendo
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+{
+    if (huart->Instance == USART2)
+    {
+    	//Definimos el estado en el que estamos
+        definirEstado(auxReception);
+        // Reanudamosla recepción para el siguiente byte
+        HAL_UART_Receive_DMA(&huart2, &auxReception, 1);
+    }
+}
+
 
 /* USER CODE END 4 */
 

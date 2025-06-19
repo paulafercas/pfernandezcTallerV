@@ -43,6 +43,7 @@ typedef enum{
 	menuInicial,
 	encenderLed,
 	Blinky,
+	cambiarBlinky,
 	IDLE
 }posiblesEstados;
 
@@ -74,10 +75,10 @@ void Error_Handler(void);
 /* Private defines -----------------------------------------------------------*/
 #define blinky_Pin GPIO_PIN_1
 #define blinky_GPIO_Port GPIOH
-#define USART_TX_Pin GPIO_PIN_2
-#define USART_TX_GPIO_Port GPIOA
-#define USART_RX_Pin GPIO_PIN_3
-#define USART_RX_GPIO_Port GPIOA
+#define UsartTX_Pin GPIO_PIN_2
+#define UsartTX_GPIO_Port GPIOA
+#define UsartRX_Pin GPIO_PIN_3
+#define UsartRX_GPIO_Port GPIOA
 #define LedRojo_Pin GPIO_PIN_6
 #define LedRojo_GPIO_Port GPIOA
 #define LedVerde_Pin GPIO_PIN_7
