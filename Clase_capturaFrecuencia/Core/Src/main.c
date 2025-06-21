@@ -21,6 +21,8 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "stdio.h"
+#include "string.h"
 
 /* USER CODE END Includes */
 
@@ -31,10 +33,6 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-//Inicializamos la variable que va a guardar el estado de la maquina
-estadoActual fsm ={0};
-//Inicializamos la variable que va a guardar el estado de la recepcion
-recepcion rx ={0};
 
 /* USER CODE END PD */
 
@@ -45,40 +43,35 @@ recepcion rx ={0};
 
 /* Private variables ---------------------------------------------------------*/
 TIM_HandleTypeDef htim2;
+TIM_HandleTypeDef htim3;
 
 UART_HandleTypeDef huart2;
-DMA_HandleTypeDef hdma_usart2_rx;
-DMA_HandleTypeDef hdma_usart2_tx;
 
 /* USER CODE BEGIN PV */
-//Creamos un Buffer donde se va a almacenar el mensaje que se transmite
-uint8_t bufferMsg [200] ={0};
-//Creamos una variable que va a almacenar el tamaño del string del buffer
-uint8_t stringLength =0;
-//Creamos una variable donde vamos a almacenar el comando de entrada
-uint8_t auxReception =0;
-//uint8_t &auxReception [200]={0};
-//Variable donde almacenamos el periodo del BLinky
-uint8_t periodoBlinky [4]={0};
-//Varible donde guardamos respuesta binaria
-uint8_t respuestaBinaria =0;
+//Bandera para reconocer entre la primera captura y la segunda
+volatile uint8_t flagCapture =0;
+//Variable donde almacenamos la primera captura
+volatile int32_t firstCapture =0;
+//Variable donde almacenamos la segunda captura
+volatile int32_t secondCapture =0;
+//Numero de Ticks en la señal
+volatile int32_t elapsedTicks =0;
+//Counter para las interrupciones del timer
+volatile int32_t counterIT =0;
+volatile uint8_t enableMsg=0;
+
+float frecuencia =0;
+uint8_t bufferMsg[64]={0};
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
-static void MX_DMA_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_TIM2_Init(void);
+static void MX_TIM3_Init(void);
 /* USER CODE BEGIN PFP */
-//Creamos la funcion que va a realizar una tarea de acuerdo al estado de la maquina
-void maquinaEstados (void);
-//Funcion que define el estado de la maquina segun el comando recibido
-void definirEstado (uint8_t comando);
-//Funcion para cambiar el periodo del LED
-void cambioPeriodo (void);
-//Funcion para la respuesta binaria
-void respuestaFinal (uint8_t respuesta);
 
 /* USER CODE END PFP */
 
@@ -115,34 +108,29 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
-  MX_DMA_Init();
   MX_USART2_UART_Init();
   MX_TIM2_Init();
+  MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
-
-  //Inicializamos el estado de la maquina en menuInicial
-
-  //Este menu muestra las diferentes opciones que se pueden realizar en la tarea
-  fsm.estado = menuInicial;
-  //Llamamos la funcion de maquina de estados para que se pueda imprimir el menu
-  maquinaEstados();
-
-  //Inicializamos el timer 2 y sus interrupciones
   HAL_TIM_Base_Start_IT(&htim2);
-
+  HAL_TIM_IC_Start_IT(&htim3, TIM_CHANNEL_1);
+  HAL_TIM_Base_Start_IT(&htim3);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-
-	  //Siempre vamos a llamar a la funcion maquina de estados
-	  maquinaEstados();
-
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+	  if (enableMsg==4){
+		  frecuencia = 160000/elapsedTicks;
+		  sprintf((char*)bufferMsg, "Frec =%,2f Hz", frecuencia);
+		  HAL_UART_Transmit(&huart2, bufferMsg, strlen((char*)bufferMsg),2000);
+		  enableMsg =0;
+
+	  }
   }
   /* USER CODE END 3 */
 }
@@ -167,7 +155,12 @@ void SystemClock_Config(void)
   RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
   RCC_OscInitStruct.HSIState = RCC_HSI_ON;
   RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
-  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_NONE;
+  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
+  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
+  RCC_OscInitStruct.PLL.PLLM = 16;
+  RCC_OscInitStruct.PLL.PLLN = 336;
+  RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV4;
+  RCC_OscInitStruct.PLL.PLLQ = 4;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
   {
     Error_Handler();
@@ -177,12 +170,12 @@ void SystemClock_Config(void)
   */
   RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
                               |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
-  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_HSI;
+  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
   RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
   RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV2;
   RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_0) != HAL_OK)
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK)
   {
     Error_Handler();
   }
@@ -207,11 +200,11 @@ static void MX_TIM2_Init(void)
 
   /* USER CODE END TIM2_Init 1 */
   htim2.Instance = TIM2;
-  htim2.Init.Prescaler = 16000-1;
+  htim2.Init.Prescaler = 1000;
   htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim2.Init.Period = 250-1;
+  htim2.Init.Period = 2500;
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
-  htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
+  htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
   {
     Error_Handler();
@@ -230,6 +223,64 @@ static void MX_TIM2_Init(void)
   /* USER CODE BEGIN TIM2_Init 2 */
 
   /* USER CODE END TIM2_Init 2 */
+
+}
+
+/**
+  * @brief TIM3 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM3_Init(void)
+{
+
+  /* USER CODE BEGIN TIM3_Init 0 */
+
+  /* USER CODE END TIM3_Init 0 */
+
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+  TIM_IC_InitTypeDef sConfigIC = {0};
+
+  /* USER CODE BEGIN TIM3_Init 1 */
+
+  /* USER CODE END TIM3_Init 1 */
+  htim3.Instance = TIM3;
+  htim3.Init.Prescaler = 0;
+  htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim3.Init.Period = 65535;
+  htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim3) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim3, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_TIM_IC_Init(&htim3) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim3, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sConfigIC.ICPolarity = TIM_INPUTCHANNELPOLARITY_RISING;
+  sConfigIC.ICSelection = TIM_ICSELECTION_DIRECTTI;
+  sConfigIC.ICPrescaler = TIM_ICPSC_DIV1;
+  sConfigIC.ICFilter = 0;
+  if (HAL_TIM_IC_ConfigChannel(&htim3, &sConfigIC, TIM_CHANNEL_1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM3_Init 2 */
+
+  /* USER CODE END TIM3_Init 2 */
 
 }
 
@@ -267,25 +318,6 @@ static void MX_USART2_UART_Init(void)
 }
 
 /**
-  * Enable DMA controller clock
-  */
-static void MX_DMA_Init(void)
-{
-
-  /* DMA controller clock enable */
-  __HAL_RCC_DMA1_CLK_ENABLE();
-
-  /* DMA interrupt init */
-  /* DMA1_Stream5_IRQn interrupt configuration */
-  HAL_NVIC_SetPriority(DMA1_Stream5_IRQn, 0, 0);
-  HAL_NVIC_EnableIRQ(DMA1_Stream5_IRQn);
-  /* DMA1_Stream6_IRQn interrupt configuration */
-  HAL_NVIC_SetPriority(DMA1_Stream6_IRQn, 0, 0);
-  HAL_NVIC_EnableIRQ(DMA1_Stream6_IRQn);
-
-}
-
-/**
   * @brief GPIO Initialization Function
   * @param None
   * @retval None
@@ -302,176 +334,55 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(blinky_GPIO_Port, blinky_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(Blinky_GPIO_Port, Blinky_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOA, LedRojo_Pin|LedVerde_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
 
-  /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(Ledazul_GPIO_Port, Ledazul_Pin, GPIO_PIN_RESET);
-
-  /*Configure GPIO pin : blinky_Pin */
-  GPIO_InitStruct.Pin = blinky_Pin;
+  /*Configure GPIO pin : Blinky_Pin */
+  GPIO_InitStruct.Pin = Blinky_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_MEDIUM;
-  HAL_GPIO_Init(blinky_GPIO_Port, &GPIO_InitStruct);
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(Blinky_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : LedRojo_Pin LedVerde_Pin */
-  GPIO_InitStruct.Pin = LedRojo_Pin|LedVerde_Pin;
+  /*Configure GPIO pin : LD2_Pin */
+  GPIO_InitStruct.Pin = LD2_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_MEDIUM;
-  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
-
-  /*Configure GPIO pin : Ledazul_Pin */
-  GPIO_InitStruct.Pin = Ledazul_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_MEDIUM;
-  HAL_GPIO_Init(Ledazul_GPIO_Port, &GPIO_InitStruct);
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(LD2_GPIO_Port, &GPIO_InitStruct);
 
 /* USER CODE BEGIN MX_GPIO_Init_2 */
 /* USER CODE END MX_GPIO_Init_2 */
 }
 
 /* USER CODE BEGIN 4 */
-//Creamos la funcion maquina de estados donde se lleva a cabo cada una de las tareas
-void maquinaEstados (void){
-	switch (fsm.estado){
-	case menuInicial:{
-		//Guardamos en nuestro Buffer el mensaje que queremos transmitir
-		sprintf((char *) bufferMsg, "¡Hola! ¿Qué quieres hacer?\n- Oprime 1 para cambiar la frecuencia del led de estado \n- Oprime 2 para encender o apagar un Led\n ");
-		// Imprimimos el menu inicial
-		HAL_UART_Transmit(&huart2, bufferMsg, strlen((char *)bufferMsg),1000);
-	    //Obtenemos el estado segun lo recibido
-	    HAL_UART_Receive(&huart2, &auxReception, 1, 5000);
-	    definirEstado(auxReception);
-		break;
-	}
-	case encenderLed: {
-		break;
-	}
-	case Blinky:{
-		//Cambiamos de estado el led del blinky
-		HAL_GPIO_TogglePin(blinky_GPIO_Port, blinky_Pin);
-		//Volvemos al estado IDLE
-		fsm.estado = IDLE;
-		break;
-	}
-	case cambiarBlinky:{
-		cambioPeriodo();
-		//Volvemos al IDLE
-		fsm.estado = IDLE;
-		break;
-	}
-	case comandoInvalido:{
-		sprintf((char *)bufferMsg, "Comando inválido.\n");
-		HAL_UART_Transmit(&huart2, bufferMsg, strlen((char *)bufferMsg), 100);
-		rx.recept = esperandoComando;
-	}
-	case IDLE:{
-		break;
-	}
-	default:{
-
-		break;
-	}
-	}
-}
-
-//Funcion para definir el estado en el que está la maquina segun el comando recibido
-void definirEstado (uint8_t comando){
-	switch (comando){
-	case '1':{
-		fsm.estado = cambiarBlinky;
-		break;
-	}
-	case '2':{
-		fsm.estado = encenderLed;
-		break;
-	}
-	default:{
-		fsm.estado = comandoInvalido;
-		break;
-	}
-	}
-}
-
-void cambioPeriodo (void){
-	//Le pedimos al usuario el valor que quiere para el periodo
-	sprintf ((char *)bufferMsg, "Escriba el valor del periodo que requiere\n");
-	//Imprimimos el mensaje
-	HAL_UART_Transmit(&huart2, bufferMsg, strlen((char*)bufferMsg), 1000);
-	//Asignamos el valor ingresado a la variable &auxReception
-	HAL_UART_Receive(&huart2, periodoBlinky, strlen((char*)periodoBlinky), 2000);
-	// Apagamos el Timer.
-	HAL_TIM_Base_Stop_IT(&htim2);
-	//Le asignamos el valor del periodoBlinky a su registro ARR
-	htim2.Init.Period = atoi((char*)periodoBlinky);
-	//Guardamos las nuevas configuraciones
-	HAL_TIM_Base_Init(&htim2);
-	// Encendemos nuevamente el Timer
-	HAL_TIM_Base_Start_IT(&htim2);
-	//Le preguntamos al usuario si quiere hacer algo mas
-	sprintf ((char *)bufferMsg, "Se ha cambiado el periodo del Blinky exitosamente. Oprima 1 si quiere realizar algo más ó 0 en caso contrario\n");
-	//Imprimimos el mensaje
-	HAL_UART_Transmit(&huart2, bufferMsg, strlen((char*)bufferMsg), 1000);
-	//Guardamos la respuesta en respuestaBinaria
-	HAL_UART_Receive(&huart2, &respuestaBinaria, strlen((char*)&auxReception),1);
-	respuestaFinal(respuestaBinaria);
-}
-
-void respuestaFinal (uint8_t respuesta){
-	switch (respuesta){
-	case '0':{
-		sprintf ((char *)bufferMsg, "Fue un gusto haber podido ayudarte, ¡Hasta pronto!\n");
-		//Imprimimos el mensaje
-		HAL_UART_Transmit(&huart2, bufferMsg, strlen((char*)bufferMsg), 1000);
-		break;
-	}
-	case '1':{
-		fsm.estado = menuInicial;
-		break;
-	}
-	default:{
-		__NOP();
-	}
-	}
-}
-
-//Hacemos uso de los callback necesarios
-
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 	if (htim->Instance ==TIM2){
-		fsm.estado = Blinky;
+		//Encendemos o apagamos el led
+		HAL_GPIO_TogglePin(Blinky_GPIO_Port, Blinky_Pin);
+	}
+	if (htim->Instance ==TIM3){
+		counterIT ++;
 	}
 }
 
-//Llamamos a la funcion Callback para el USART2
-void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
-{
-    if (huart->Instance == USART2)
-    {
-        // Transmisión finalizada.
-        fsm.estado = IDLE;
-    }
+void HAL_TIM_IC_CaptureCallback (TIM_HandleTypeDef *htim){
+	if (htim->Instance ==TIM3){
+		if (flagCapture ==1){
+			firstCapture = TIM3->CR1;
+			counterIT =0;
+		}
+		if (flagCapture==2){
+			secondCapture = TIM3->CR1;
+			elapsedTicks = (secondCapture-firstCapture)+(counterIT*65535);
+			flagCapture =0;
+			__NOP();
+		}
+		flagCapture++;
+	}
 }
-
-//Llamamos a la funcion Callback para el comando que estamos recibiendo
-/*void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
-{
-    if (huart->Instance == USART2)
-    {
-    	//Definimos el estado en el que estamos
-        definirEstado((char*)&auxReception);
-        // Reanudamosla recepción para el siguiente byte
-        HAL_UART_Receive(&huart2, &auxReception,strlen((char *) &auxReception), 2000);
-    }
-}
-*/
-
-
 /* USER CODE END 4 */
 
 /**
