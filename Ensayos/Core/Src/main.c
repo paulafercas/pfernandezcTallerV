@@ -22,16 +22,21 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "stdio.h"
+#include "string.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-
+typedef enum{
+	bufferA,
+	bufferB
+}bufferActivo;
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-
+//Definimos el tamaño de los datos que vamos a recibir en la DMA
+#define UART_Rx_BUFFER_SIZE 64
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -41,15 +46,29 @@
 
 /* Private variables ---------------------------------------------------------*/
 UART_HandleTypeDef huart2;
+DMA_HandleTypeDef hdma_usart2_rx;
+DMA_HandleTypeDef hdma_usart2_tx;
 
 /* USER CODE BEGIN PV */
-uint8_t number = 123;
-uint8_t numarray[4];
+//Creamos los dos buffer con los que vamos a implementar el ping pong
+uint8_t rx_buffer_a =0;
+uint8_t rx_buffer_b =0;
+// Creamos un buffer donde se va a almcenar los datos recibidos
+uint8_t UART2_RxBuffer[UART_Rx_BUFFER_SIZE];
+//Creamos un segundo buffer, con el fin de que cuando estemos utilizando
+//Un conjunto de datos determinado no vayamos a sobreescribir en él al
+//recibir otro
+uint8_t data_to_process [UART_Rx_BUFFER_SIZE];
+//Creamos una bandera
+volatile uint16_t data_lenght =0;
+extern UART_HandleTypeDef huart2;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
+static void MX_DMA_Init(void);
 static void MX_USART2_UART_Init(void);
 /* USER CODE BEGIN PFP */
 
@@ -88,6 +107,7 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_DMA_Init();
   MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
 
@@ -95,14 +115,18 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  while (1)
+  //Funcion para recibir un buffer no bloqueante con interrupcion
+  HAL_UARTEx_ReceiveToIdle_DMA(&huart2, UART2_RxBuffer, UART_Rx_BUFFER_SIZE);
+;  while (1)
   {
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-	  sprintf ((char*)numarray, "%d\n",number);
-	  HAL_UART_Transmit(&huart2, numarray, 4, 1000);
-	  HAL_Delay (1000);
+	if (data_lenght>0){
+		//Recibimos otro buffer en el data_to_process
+		HAL_UART_Transmit_DMA(&huart2, data_to_process, data_lenght);
+		data_lenght=0;
+	}
   }
   /* USER CODE END 3 */
 }
@@ -187,6 +211,25 @@ static void MX_USART2_UART_Init(void)
 }
 
 /**
+  * Enable DMA controller clock
+  */
+static void MX_DMA_Init(void)
+{
+
+  /* DMA controller clock enable */
+  __HAL_RCC_DMA1_CLK_ENABLE();
+
+  /* DMA interrupt init */
+  /* DMA1_Stream5_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Stream5_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Stream5_IRQn);
+  /* DMA1_Stream6_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Stream6_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Stream6_IRQn);
+
+}
+
+/**
   * @brief GPIO Initialization Function
   * @param None
   * @retval None
@@ -205,7 +248,19 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-
+void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
+{
+	//Nos aseguramos que estamos recibiendo la interrupcion del USART2
+	if (huart->Instance ==USART2){
+		//Copiamos el buffer recibido en la variable que vamos a utilizar para
+		//procesar
+		memcpy (data_to_process, UART2_RxBuffer, Size);
+		//Guardamos el tamaño del mensaje en datalenght
+		data_lenght= Size;
+		//Reiniciamos la funcion de recpecion para que pueda recibir mas datos;
+		HAL_UARTEx_ReceiveToIdle_DMA(huart, UART2_RxBuffer, UART_Rx_BUFFER_SIZE);
+	}
+}
 /* USER CODE END 4 */
 
 /**
