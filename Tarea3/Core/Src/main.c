@@ -72,6 +72,10 @@ typedef enum{
 	bufferB
 }bufferActivo;
 
+//Creamos los buffer a y b
+uint8_t rx_buffer_a [UART_RX_BUFFER_SIZE]={0};
+uint8_t rx_buffer_b [UART_RX_BUFFER_SIZE]={0};
+
 //Creamos una estructura donde se almacena los datos correspondientes al
 //buffer activo
 typedef struct{
@@ -82,8 +86,12 @@ typedef struct{
 //Inicializamos la estructura DataPacket con el buffer vacío y el tamaño
 //igual a 0
 volatile DataPacket data_ready_packet ={.buffer= NULL, .size=0};
+//Inicializamos la variable del buffer activo con el buffer a
+volatile bufferActivo dma_buffer_activo = bufferA;
+
 //Creamos la variable donde almacenaremos el menu inicial
 char menu_display_buffer[MENU_BUFFER_SIZE];
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -143,7 +151,12 @@ int main(void)
   /* USER CODE BEGIN 2 */
   //Inicializamos el timer 2 y sus interrupciones
   HAL_TIM_Base_Start_IT(&htim2);
+  //Imprimimos el menu inicial
   menuComandos(NULL);
+  //Inicializamos el buffer activo
+  dma_buffer_activo= bufferA;
+  //Comenzamos la recepcion del comando
+  HAL_UARTEx_ReceiveToIdle_DMA(&huart2, rx_buffer_a, UART_RX_BUFFER_SIZE);
 
   /* USER CODE END 2 */
 

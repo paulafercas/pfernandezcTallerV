@@ -252,13 +252,6 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
 {
 	//Nos aseguramos que estamos recibiendo la interrupcion del USART2
 	if (huart->Instance ==USART2){
-		//Copiamos el buffer recibido en la variable que vamos a utilizar para
-		//procesar
-		memcpy (data_to_process, UART2_RxBuffer, Size);
-		//Guardamos el tamaño del mensaje en datalenght
-		data_lenght= Size;
-		//Reiniciamos la funcion de recpecion para que pueda recibir mas datos;
-		HAL_UARTEx_ReceiveToIdle_DMA(huart, UART2_RxBuffer, UART_Rx_BUFFER_SIZE);
 	}
 }
 /* USER CODE END 4 */
