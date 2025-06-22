@@ -54,6 +54,13 @@ typedef enum{
 	comandoDesconocido //El comando que se ingresó no es válido
 };
 
+//Definimos la estructura donde se hace llamada a los posibles estados de la
+//enumeracion
+typedef struct{
+	const char* comando_str;
+	comandoID_t comando_id;
+}comando_t;
+
 //D
 
 

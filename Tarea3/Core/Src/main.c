@@ -31,10 +31,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-//Inicializamos la variable que va a guardar el estado de la maquina
-estadoActual fsm ={0};
-//Inicializamos la variable que va a guardar el estado de la recepcion
-recepcion rx ={0};
+
 
 /* USER CODE END PD */
 
@@ -51,17 +48,7 @@ DMA_HandleTypeDef hdma_usart2_rx;
 DMA_HandleTypeDef hdma_usart2_tx;
 
 /* USER CODE BEGIN PV */
-//Creamos un Buffer donde se va a almacenar el mensaje que se transmite
-uint8_t bufferMsg [200] ={0};
-//Creamos una variable que va a almacenar el tamaño del string del buffer
-uint8_t stringLength =0;
-//Creamos una variable donde vamos a almacenar el comando de entrada
-uint8_t auxReception =0;
-//uint8_t &auxReception [200]={0};
-//Variable donde almacenamos el periodo del BLinky
-uint8_t periodoBlinky [4]={0};
-//Varible donde guardamos respuesta binaria
-uint8_t respuestaBinaria =0;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -71,14 +58,7 @@ static void MX_DMA_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_TIM2_Init(void);
 /* USER CODE BEGIN PFP */
-//Creamos la funcion que va a realizar una tarea de acuerdo al estado de la maquina
-void maquinaEstados (void);
-//Funcion que define el estado de la maquina segun el comando recibido
-void definirEstado (uint8_t comando);
-//Funcion para cambiar el periodo del LED
-void cambioPeriodo (void);
-//Funcion para la respuesta binaria
-void respuestaFinal (uint8_t respuesta);
+
 
 /* USER CODE END PFP */
 
@@ -119,14 +99,6 @@ int main(void)
   MX_USART2_UART_Init();
   MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
-
-  //Inicializamos el estado de la maquina en menuInicial
-
-  //Este menu muestra las diferentes opciones que se pueden realizar en la tarea
-  fsm.estado = menuInicial;
-  //Llamamos la funcion de maquina de estados para que se pueda imprimir el menu
-  maquinaEstados();
-
   //Inicializamos el timer 2 y sus interrupciones
   HAL_TIM_Base_Start_IT(&htim2);
 
@@ -336,141 +308,14 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-//Creamos la funcion maquina de estados donde se lleva a cabo cada una de las tareas
-void maquinaEstados (void){
-	switch (fsm.estado){
-	case menuInicial:{
-		//Guardamos en nuestro Buffer el mensaje que queremos transmitir
-		sprintf((char *) bufferMsg, "¡Hola! ¿Qué quieres hacer?\n- Oprime 1 para cambiar la frecuencia del led de estado \n- Oprime 2 para encender o apagar un Led\n ");
-		// Imprimimos el menu inicial
-		HAL_UART_Transmit(&huart2, bufferMsg, strlen((char *)bufferMsg),1000);
-	    //Obtenemos el estado segun lo recibido
-	    HAL_UART_Receive(&huart2, &auxReception, 1, 5000);
-	    definirEstado(auxReception);
-		break;
-	}
-	case encenderLed: {
-		break;
-	}
-	case Blinky:{
-		//Cambiamos de estado el led del blinky
-		HAL_GPIO_TogglePin(blinky_GPIO_Port, blinky_Pin);
-		//Volvemos al estado IDLE
-		fsm.estado = IDLE;
-		break;
-	}
-	case cambiarBlinky:{
-		cambioPeriodo();
-		//Volvemos al IDLE
-		fsm.estado = IDLE;
-		break;
-	}
-	case comandoInvalido:{
-		sprintf((char *)bufferMsg, "Comando inválido.\n");
-		HAL_UART_Transmit(&huart2, bufferMsg, strlen((char *)bufferMsg), 100);
-		rx.recept = esperandoComando;
-	}
-	case IDLE:{
-		break;
-	}
-	default:{
-
-		break;
-	}
-	}
-}
-
-//Funcion para definir el estado en el que está la maquina segun el comando recibido
-void definirEstado (uint8_t comando){
-	switch (comando){
-	case '1':{
-		fsm.estado = cambiarBlinky;
-		break;
-	}
-	case '2':{
-		fsm.estado = encenderLed;
-		break;
-	}
-	default:{
-		fsm.estado = comandoInvalido;
-		break;
-	}
-	}
-}
-
-void cambioPeriodo (void){
-	//Le pedimos al usuario el valor que quiere para el periodo
-	sprintf ((char *)bufferMsg, "Escriba el valor del periodo que requiere\n");
-	//Imprimimos el mensaje
-	HAL_UART_Transmit(&huart2, bufferMsg, strlen((char*)bufferMsg), 1000);
-	//Asignamos el valor ingresado a la variable &auxReception
-	HAL_UART_Receive(&huart2, periodoBlinky, strlen((char*)periodoBlinky), 2000);
-	// Apagamos el Timer.
-	HAL_TIM_Base_Stop_IT(&htim2);
-	//Le asignamos el valor del periodoBlinky a su registro ARR
-	htim2.Init.Period = atoi((char*)periodoBlinky);
-	//Guardamos las nuevas configuraciones
-	HAL_TIM_Base_Init(&htim2);
-	// Encendemos nuevamente el Timer
-	HAL_TIM_Base_Start_IT(&htim2);
-	//Le preguntamos al usuario si quiere hacer algo mas
-	sprintf ((char *)bufferMsg, "Se ha cambiado el periodo del Blinky exitosamente. Oprima 1 si quiere realizar algo más ó 0 en caso contrario\n");
-	//Imprimimos el mensaje
-	HAL_UART_Transmit(&huart2, bufferMsg, strlen((char*)bufferMsg), 1000);
-	//Guardamos la respuesta en respuestaBinaria
-	HAL_UART_Receive(&huart2, &respuestaBinaria, strlen((char*)&auxReception),1);
-	respuestaFinal(respuestaBinaria);
-}
-
-void respuestaFinal (uint8_t respuesta){
-	switch (respuesta){
-	case '0':{
-		sprintf ((char *)bufferMsg, "Fue un gusto haber podido ayudarte, ¡Hasta pronto!\n");
-		//Imprimimos el mensaje
-		HAL_UART_Transmit(&huart2, bufferMsg, strlen((char*)bufferMsg), 1000);
-		break;
-	}
-	case '1':{
-		fsm.estado = menuInicial;
-		break;
-	}
-	default:{
-		__NOP();
-	}
-	}
-}
-
-//Hacemos uso de los callback necesarios
-
+//Llamamos el callback para el blinky
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
-	if (htim->Instance ==TIM2){
-		fsm.estado = Blinky;
-	}
-}
-
-//Llamamos a la funcion Callback para el USART2
-void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
-{
-    if (huart->Instance == USART2)
-    {
-        // Transmisión finalizada.
-        fsm.estado = IDLE;
+	// Nos aseguramos de que sea el TIMER2 el que haga la interrupcion
+    if (htim->Instance == TIM2){
+        // Hacemos un Toggle al blinky
+        HAL_GPIO_TogglePin(blinky_GPIO_Port, blinky_Pin);
     }
 }
-
-//Llamamos a la funcion Callback para el comando que estamos recibiendo
-/*void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
-{
-    if (huart->Instance == USART2)
-    {
-    	//Definimos el estado en el que estamos
-        definirEstado((char*)&auxReception);
-        // Reanudamosla recepción para el siguiente byte
-        HAL_UART_Receive(&huart2, &auxReception,strlen((char *) &auxReception), 2000);
-    }
-}
-*/
-
 
 /* USER CODE END 4 */
 
