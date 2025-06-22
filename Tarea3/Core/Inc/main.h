@@ -42,31 +42,20 @@ extern "C" {
 /* USER CODE BEGIN ET */
 //Definimos los estados que puede tener la maquina de estados
 typedef enum{
-	menuInicial,
-	encenderLed,
-	Blinky,
-	cambiarBlinky,
-	comandoInvalido,
-	IDLE
-}posiblesEstados;
+	frecBlinky, //Cambiar la frecuencia del Bliny
+	ledRGB,		//Encender o apagar un led del RGB
+	tiempoMuestreo, //Configurar el tiempo de muestreo
+	tamañoFFT,		//Configurar el tamaño de la FFT
+	imprimirADC,	//Imprimir señal ADC
+	imprimirConf,	//Imprimir configuracion del equipo
+	imprimirFFT, 	//Imprimir el espectro FFT
+	importantesFFT, // Imprimir solo los valores mas importantes
+	help,			// Imprimir el menu de configuraciones
+	comandoDesconocido //El comando que se ingresó no es válido
+};
 
-//Creamos la estructura donde se va a apuntar al estado requerido
-typedef struct
-{
-	posiblesEstados estado;
-}estadoActual;
+//D
 
-//Creamos una estructura donde se define los posibles estados de recepción
-typedef enum{
-	esperandoComando,
-	esperandoDato,
-	esperandoRespuestaFinal,
-}estadoRecepcion;
-
-typedef struct
-{
-	estadoRecepcion recept;
-}recepcion;
 
 /* USER CODE END ET */
 
