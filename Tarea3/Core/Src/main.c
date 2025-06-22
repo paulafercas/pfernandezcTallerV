@@ -33,6 +33,8 @@
 /* USER CODE BEGIN PD */
 //Definimos la variable que nos indica el tamaño de los buffer recibidos
 #define UART_RX_BUFFER_SIZE 64
+//Definimos el tamaño del buffer donde se va a almacenar el menu
+#define MENU_BUFFER_SIZE 1000
 
 /* USER CODE END PD */
 
@@ -51,14 +53,14 @@ DMA_HandleTypeDef hdma_usart2_tx;
 /* USER CODE BEGIN PV */
 //Definimos una tabla con los coomandos y funciones posibles
 const comando_t tablaComandos[]={
-		{"Frecuencia_blinky", 	frecBlinky},
-		{"Led_RGB", 			ledRGB},
-		{"Tiempo_muestreo", tiempoMuestreo},
-		{"Tamaño_FFT",		tamañoFFT},
-		{"SeñalADC", imprimirADC},
-		{"ConfiguracionEq", imprimirConf},
-		{"EspectroFFT", imprimirFFT},
-		{"Help", help},
+		{"blinky", 	frecBlinky},
+		{"led", 			ledRGB},
+		{"muestreo", tiempoMuestreo},
+		{"tamañoFFT",		tamañoFFT},
+		{"señalADC", imprimirADC},
+		{"equipo", imprimirConf},
+		{"espectroFFT", imprimirFFT},
+		{"help", help},
 };
 //Guardamos el numero de comandos en una variable
 const int numeroComandos = sizeof (tablaComandos)/sizeof (comando_t);
@@ -80,6 +82,8 @@ typedef struct{
 //Inicializamos la estructura DataPacket con el buffer vacío y el tamaño
 //igual a 0
 volatile DataPacket data_ready_packet ={.buffer= NULL, .size=0};
+//Creamos la variable donde almacenaremos el menu inicial
+char menu_display_buffer[MENU_BUFFER_SIZE];
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -93,7 +97,10 @@ static void MX_TIM2_Init(void);
 void analizarComando (uint8_t* buffer, uint16_t size);
 //Funcion que envia el comando
 void enviarComando (comandoID_t id, char* comando, char* parametros);
+//Funcion para encontrar el comando que el usuario envió
 comandoID_t encontrarComandoid (const char* comando_str);
+//Funcion para imprimir el menu de opciones
+void menuComandos (char* params);
 
 /* USER CODE END PFP */
 
@@ -136,6 +143,7 @@ int main(void)
   /* USER CODE BEGIN 2 */
   //Inicializamos el timer 2 y sus interrupciones
   HAL_TIM_Base_Start_IT(&htim2);
+  menuComandos(NULL);
 
   /* USER CODE END 2 */
 
@@ -145,7 +153,6 @@ int main(void)
   {
 
 	  //Siempre vamos a llamar a la funcion maquina de estados
-	  maquinaEstados();
 
     /* USER CODE END WHILE */
 
@@ -343,6 +350,54 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+//Funcion para imprimir el menu inicial
+void menuComandos (char* params){
+	//Limpiamos el buffer
+	memset (menu_display_buffer, 0, MENU_BUFFER_SIZE);
+	//Creamos el string para el menu
+	int offset =0;
+	// Header
+	    offset += snprintf(menu_display_buffer + offset, MENU_BUFFER_SIZE - offset,
+	                       "| %-15s| %-65s| %-21s|\r\n", "Comando", "Descripcion", "Formato");
+
+	    // Comandos con sus respectivas descripciones
+	    offset += snprintf(menu_display_buffer + offset, MENU_BUFFER_SIZE - offset,
+	                       "| %-15s| %-65s| %-21s|\r\n", "led", "Controla los led RGB", "led <color> <state>");
+	    offset += snprintf(menu_display_buffer + offset, MENU_BUFFER_SIZE - offset,
+	                       "| %-15s| %-65s| %-21s|\r\n", "blinky", "Configura el periodo del blinky", "blinky <period_ms>");
+	    offset += snprintf(menu_display_buffer + offset, MENU_BUFFER_SIZE - offset,
+	                       "| %-15s| %-65s| %-21s|\r\n", "muestreo", "Configura el tiempo de muestreo (44.1kHz,48kHz, 96kHz, 128kHz)", "muestreo <valor>");
+	    offset += snprintf(menu_display_buffer + offset, MENU_BUFFER_SIZE - offset,
+	                       "| %-16s| %-66s| %-23s|\r\n", "tamañoFFT", "Configura el tamaño de la FFT (1024, 2048)", "tamañoFFT <tamaño>");
+	    offset += snprintf(menu_display_buffer + offset, MENU_BUFFER_SIZE - offset,
+	                       "| %-16s| %-66s| %-22s|\r\n", "señalADC", "Imprime la señal ADC muestreada", "señalADC");
+	    offset += snprintf(menu_display_buffer + offset, MENU_BUFFER_SIZE - offset,
+	                       "| %-15s| %-65s| %-21s|\r\n", "equipo", "Imprime la configuracion del equipo", "equipo");
+	    offset += snprintf(menu_display_buffer + offset, MENU_BUFFER_SIZE - offset,
+	                       "| %-15s| %-66s| %-21s|\r\n", "espectroFFT", "Imprime el espectro FFT de la señal", "espectroFFT");
+	    offset += snprintf(menu_display_buffer + offset, MENU_BUFFER_SIZE - offset,
+	                       "| %-15s| %-65s| %-21s|\r\n", "help", "Imprime el menu de comandos", "help");
+
+
+	    // Transmitimos el menu a traves de la DMA
+	    //Nos aseguramos de que no estemos transmitiendo otro buffer a traves de la DMA
+	    if (huart2.gState == HAL_UART_STATE_READY) {
+	    	//Transmitimos el menu
+	        HAL_UART_Transmit_DMA(&huart2, (uint8_t*)menu_display_buffer, strlen(menu_display_buffer));
+	    } else {
+	        //Creamos un char donde almacenamos el mensaje de buffer ocupado
+	        char busy_msg[] = "UART busy. Try 'menu' again.\r\n";
+	        HAL_UART_Transmit(&huart2, (uint8_t*)busy_msg, strlen(busy_msg), HAL_MAX_DELAY);
+	    }
+
+}
+//Llamamos al callback para la transmision por DMA
+void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart){
+	//Nos aseguramos de que es el USART2 el que esta haciendo la interrupcion
+	if (huart->Instance == USART2){
+
+	}
+}
 //Llamamos el callback para el blinky
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 	// Nos aseguramos de que sea el TIMER2 el que haga la interrupcion
