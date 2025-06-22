@@ -89,7 +89,11 @@ static void MX_DMA_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_TIM2_Init(void);
 /* USER CODE BEGIN PFP */
-
+//Funcion que analiza el comando recibido
+void analizarComando (uint8_t* buffer, uint16_t size);
+//Funcion que envia el comando
+void enviarComando (comandoID_t id, char* comando, char* parametros);
+comandoID_t encontrarComandoid (const char* comando_str);
 
 /* USER CODE END PFP */
 
