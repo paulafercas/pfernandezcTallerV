@@ -34,7 +34,7 @@
 //Definimos la variable que nos indica el tamaño de los buffer recibidos
 #define UART_RX_BUFFER_SIZE 64
 //Definimos el tamaño del buffer donde se va a almacenar el menu
-#define MENU_BUFFER_SIZE 1000
+#define MENU_BUFFER_SIZE 1050
 
 /* USER CODE END PD */
 
@@ -358,25 +358,25 @@ void menuComandos (char* params){
 	int offset =0;
 	// Header
 	    offset += snprintf(menu_display_buffer + offset, MENU_BUFFER_SIZE - offset,
-	                       "| %-15s| %-65s| %-21s|\r\n", "Comando", "Descripcion", "Formato");
+	                       "| %-15s| %-65s| %-24s|\r\n", "Comando", "Descripcion", "Formato");
 
 	    // Comandos con sus respectivas descripciones
 	    offset += snprintf(menu_display_buffer + offset, MENU_BUFFER_SIZE - offset,
-	                       "| %-15s| %-65s| %-21s|\r\n", "led", "Controla los led RGB", "led <color> <state>");
+	                       "| %-15s| %-65s| %-24s|\r\n", "led", "Controla los led RGB", "led <color> <ON/OFF>");
 	    offset += snprintf(menu_display_buffer + offset, MENU_BUFFER_SIZE - offset,
-	                       "| %-15s| %-65s| %-21s|\r\n", "blinky", "Configura el periodo del blinky", "blinky <period_ms>");
+	                       "| %-15s| %-65s| %-24s|\r\n", "blinky", "Configura el periodo del blinky", "blinky <periodo en ms>");
 	    offset += snprintf(menu_display_buffer + offset, MENU_BUFFER_SIZE - offset,
-	                       "| %-15s| %-65s| %-21s|\r\n", "muestreo", "Configura el tiempo de muestreo (44.1kHz,48kHz, 96kHz, 128kHz)", "muestreo <valor>");
+	                       "| %-15s| %-65s| %-24s|\r\n", "muestreo", "Configura el tiempo de muestreo (44.1kHz,48kHz, 96kHz, 128kHz)", "muestreo <valor>");
 	    offset += snprintf(menu_display_buffer + offset, MENU_BUFFER_SIZE - offset,
-	                       "| %-16s| %-66s| %-23s|\r\n", "tamañoFFT", "Configura el tamaño de la FFT (1024, 2048)", "tamañoFFT <tamaño>");
+	                       "| %-16s| %-66s| %-26s|\r\n", "tamañoFFT", "Configura el tamaño de la FFT (1024, 2048)", "tamañoFFT <tamaño>");
 	    offset += snprintf(menu_display_buffer + offset, MENU_BUFFER_SIZE - offset,
-	                       "| %-16s| %-66s| %-22s|\r\n", "señalADC", "Imprime la señal ADC muestreada", "señalADC");
+	                       "| %-16s| %-66s| %-25s|\r\n", "señalADC", "Imprime la señal ADC muestreada", "señalADC");
 	    offset += snprintf(menu_display_buffer + offset, MENU_BUFFER_SIZE - offset,
-	                       "| %-15s| %-65s| %-21s|\r\n", "equipo", "Imprime la configuracion del equipo", "equipo");
+	                       "| %-15s| %-65s| %-24s|\r\n", "equipo", "Imprime la configuracion del equipo", "equipo");
 	    offset += snprintf(menu_display_buffer + offset, MENU_BUFFER_SIZE - offset,
-	                       "| %-15s| %-66s| %-21s|\r\n", "espectroFFT", "Imprime el espectro FFT de la señal", "espectroFFT");
+	                       "| %-15s| %-66s| %-24s|\r\n", "espectroFFT", "Imprime el espectro FFT de la señal", "espectroFFT");
 	    offset += snprintf(menu_display_buffer + offset, MENU_BUFFER_SIZE - offset,
-	                       "| %-15s| %-65s| %-21s|\r\n", "help", "Imprime el menu de comandos", "help");
+	                       "| %-15s| %-65s| %-24s|\r\n", "help", "Imprime el menu de comandos", "help");
 
 
 	    // Transmitimos el menu a traves de la DMA
