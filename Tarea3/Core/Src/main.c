@@ -31,7 +31,8 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-
+//Definimos la variable que nos indica el tamaño de los buffer recibidos
+#define UART_RX_BUFFER_SIZE 64
 
 /* USER CODE END PD */
 
@@ -48,7 +49,37 @@ DMA_HandleTypeDef hdma_usart2_rx;
 DMA_HandleTypeDef hdma_usart2_tx;
 
 /* USER CODE BEGIN PV */
+//Definimos una tabla con los coomandos y funciones posibles
+const comando_t tablaComandos[]={
+		{"Frecuencia_blinky", 	frecBlinky},
+		{"Led_RGB", 			ledRGB},
+		{"Tiempo_muestreo", tiempoMuestreo},
+		{"Tamaño_FFT",		tamañoFFT},
+		{"SeñalADC", imprimirADC},
+		{"ConfiguracionEq", imprimirConf},
+		{"EspectroFFT", imprimirFFT},
+		{"Help", help},
+};
+//Guardamos el numero de comandos en una variable
+const int numeroComandos = sizeof (tablaComandos)/sizeof (comando_t);
 
+//Creamos las variables donde se van a guardar los buffer utilizando
+//el metodo ping pong
+typedef enum{
+	bufferA,
+	bufferB
+}bufferActivo;
+
+//Creamos una estructura donde se almacena los datos correspondientes al
+//buffer activo
+typedef struct{
+	uint8_t* buffer;
+	uint16_t size;
+}DataPacket;
+
+//Inicializamos la estructura DataPacket con el buffer vacío y el tamaño
+//igual a 0
+volatile DataPacket data_ready_packet ={.buffer= NULL, .size=0};
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/

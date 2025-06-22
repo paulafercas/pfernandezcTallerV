@@ -52,7 +52,7 @@ typedef enum{
 	importantesFFT, // Imprimir solo los valores mas importantes
 	help,			// Imprimir el menu de configuraciones
 	comandoDesconocido //El comando que se ingresó no es válido
-};
+}comandoID_t;
 
 //Definimos la estructura donde se hace llamada a los posibles estados de la
 //enumeracion
