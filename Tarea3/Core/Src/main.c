@@ -35,6 +35,8 @@
 #define UART_RX_BUFFER_SIZE 64
 //Definimos el tamaño del buffer donde se va a almacenar el menu
 #define MENU_BUFFER_SIZE 1150
+//Definimos el tamaño del buffer donde almacenaremos los valores de la señal
+#define ADC_BUFFER_SIZE 1024
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -54,7 +56,9 @@ DMA_HandleTypeDef hdma_usart2_rx;
 DMA_HandleTypeDef hdma_usart2_tx;
 
 /* USER CODE BEGIN PV */
-//Definimos una tabla con los coomandos y funciones posibles
+//Inicializamos la variable que almacena el estado actual de la maquina
+estadoActual fsm ={0};
+//Definimos una tabla con los comandos y funciones posibles
 const comando_t tablaComandos[]={
 		{"blinky", 	frecBlinky},
 		{"led", 			ledRGB},
@@ -98,6 +102,21 @@ char menu_display_buffer[MENU_BUFFER_SIZE];
 //Inicializamos la variable que guarda el periodo del blinky
 int periodo_ms =250;
 
+//Creamos el arreglo donde se van a almacenar los valores de la señal
+volatile uint16_t adc_dma_buffer [ADC_BUFFER_SIZE];
+
+//Bandera para avisar que el buffer de ADC está listo
+uint8_t adc_data_ready = 0;
+
+//UART/DMA externos
+extern UART_HandleTypeDef huart2;
+extern DMA_HandleTypeDef hdma_usart2_rx;
+extern DMA_HandleTypeDef hdma_usart2_tx;
+
+//Extern ADC y Timer
+extern ADC_HandleTypeDef hadc1;
+extern TIM_HandleTypeDef htim3;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -111,14 +130,14 @@ static void MX_ADC1_Init(void);
 /* USER CODE BEGIN PFP */
 //Funcion que analiza el comando recibido
 void analizarComando (uint8_t* buffer, uint16_t size);
-//Funcion que envia el comando
-void maquinaEstados (comandoID_t id, char* comando, char* params);
+//Funcion que despacha el comando
+void despacharComando (comandoID_t id, char* comando, char* params);
 //Funcion para encontrar el comando que el usuario envió
 comandoID_t encontrarComandoid (const char* comando_str);
 //Funcion para imprimir el menu de opciones
 void menuComandos (char* params);
 
-//Funciones dentro de la maquina de estados
+//Funciones dentro del despacho de comandos
 //Funcion para cambiar el periodo del blinky
 void periodoBlinky (char* params);
 //Funcion para encender o apagar un led del RGB
@@ -135,6 +154,9 @@ void printConf(void);
 void printFFT(void);
 //Funcion para imprimir los valores mas importantes de la FFT
 void printImportantes(void);
+
+//Funcion maquina de estados
+void maquinaEstados (void);
 
 /* USER CODE END PFP */
 
@@ -176,36 +198,25 @@ int main(void)
   /* USER CODE BEGIN 2 */
   //Inicializamos el timer 2 y sus interrupciones
   HAL_TIM_Base_Start_IT(&htim2);
-  //Imprimimos el menu inicial
-  menuComandos(NULL);
+  //Inicializamos el Timer3 (sin interrupciones)
+  HAL_TIM_Base_Start(&htim3);
+  //Inicializamos el PWM
+  HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_4);
+
+  //Imprimimos el menu de comandos
+  menuComandos(menu_display_buffer);
   //Inicializamos el buffer activo
   dma_buffer_activo= bufferA;
   //Comenzamos la recepcion del comando
   HAL_UARTEx_ReceiveToIdle_DMA(&huart2, rx_buffer_a, UART_RX_BUFFER_SIZE);
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  //Nos seguramos de que el buffer tenga un tamaño distinto de 0
-	  if (data_ready_packet.size >0){
-		  //Creamos una variable auxiliar donde guardamos el valor del buffer
-		  uint8_t* proc_buffer = 0;
-		  //Creamos una variable auxiliar donde guardamos el valor del tamaño del buffer
-		  uint16_t proc_size=0;
-		  //Asignamos los valores correspondientes a cada variable
-		  proc_buffer = data_ready_packet.buffer;
-		  proc_size = data_ready_packet.size;
-
-		  //Borramos lo guardado en las variables globales para que no se acumulen los datos recibidos
-		  data_ready_packet.buffer = NULL;
-		  data_ready_packet.size =0;
-
-		  //Procesamos los datos usando estas copias locales de forma segura
-		  analizarComando(proc_buffer, proc_size);
-	  }
-
+	  maquinaEstados();
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -284,7 +295,7 @@ static void MX_ADC1_Init(void)
   hadc1.Init.ExternalTrigConv = ADC_EXTERNALTRIGCONV_T3_TRGO;
   hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
   hadc1.Init.NbrOfConversion = 1;
-  hadc1.Init.DMAContinuousRequests = DISABLE;
+  hadc1.Init.DMAContinuousRequests = ENABLE;
   hadc1.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
   if (HAL_ADC_Init(&hadc1) != HAL_OK)
   {
@@ -295,7 +306,7 @@ static void MX_ADC1_Init(void)
   */
   sConfig.Channel = ADC_CHANNEL_0;
   sConfig.Rank = 1;
-  sConfig.SamplingTime = ADC_SAMPLETIME_3CYCLES;
+  sConfig.SamplingTime = ADC_SAMPLETIME_15CYCLES;
   if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
   {
     Error_Handler();
@@ -365,6 +376,7 @@ static void MX_TIM3_Init(void)
 
   TIM_ClockConfigTypeDef sClockSourceConfig = {0};
   TIM_MasterConfigTypeDef sMasterConfig = {0};
+  TIM_OC_InitTypeDef sConfigOC = {0};
 
   /* USER CODE BEGIN TIM3_Init 1 */
 
@@ -384,15 +396,28 @@ static void MX_TIM3_Init(void)
   {
     Error_Handler();
   }
+  if (HAL_TIM_PWM_Init(&htim3) != HAL_OK)
+  {
+    Error_Handler();
+  }
   sMasterConfig.MasterOutputTrigger = TIM_TRGO_UPDATE;
   sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_ENABLE;
   if (HAL_TIMEx_MasterConfigSynchronization(&htim3, &sMasterConfig) != HAL_OK)
   {
     Error_Handler();
   }
+  sConfigOC.OCMode = TIM_OCMODE_PWM1;
+  sConfigOC.Pulse = 0;
+  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+  if (HAL_TIM_PWM_ConfigChannel(&htim3, &sConfigOC, TIM_CHANNEL_4) != HAL_OK)
+  {
+    Error_Handler();
+  }
   /* USER CODE BEGIN TIM3_Init 2 */
 
   /* USER CODE END TIM3_Init 2 */
+  HAL_TIM_MspPostInit(&htim3);
 
 }
 
@@ -503,6 +528,45 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+//Funcion de maquinaEstados
+void maquinaEstados (void){
+	switch (fsm.estado){
+	case blinky:{
+        // Hacemos un Toggle al blinky
+        HAL_GPIO_TogglePin(blinky_GPIO_Port, blinky_Pin);
+        //Volvemos al estado de recibir mensaje
+        fsm.estado = mensaje;
+		break;
+	}
+	case mensaje:{
+		  //Nos seguramos de que el buffer tenga un tamaño distinto de 0
+		  if (data_ready_packet.size >0){
+			  //Creamos una variable auxiliar donde guardamos el valor del buffer
+			  uint8_t* proc_buffer = 0;
+			  //Creamos una variable auxiliar donde guardamos el valor del tamaño del buffer
+			  uint16_t proc_size=0;
+			  //Asignamos los valores correspondientes a cada variable
+			  proc_buffer = data_ready_packet.buffer;
+			  proc_size = data_ready_packet.size;
+
+			  //Borramos lo guardado en las variables globales para que no se acumulen los datos recibidos
+			  data_ready_packet.buffer = NULL;
+			  data_ready_packet.size =0;
+
+			  //Procesamos los datos usando estas copias locales de forma segura
+			  analizarComando(proc_buffer, proc_size);
+		  }
+		break;
+	}
+	case IDLE:{
+		break;
+	}
+	default:{
+		__NOP();
+		break;
+	}
+	}
+}
 //Funcion para imprimir el menu inicial
 void menuComandos (char* params){
 	//Limpiamos el buffer
@@ -575,7 +639,7 @@ void analizarComando (uint8_t* buffer, uint16_t size){
 	//Debemos identificar el comando que estamos utilizando
 	comandoID_t id =encontrarComandoid (comando_str);
 	//Enviamos el comando a la maquina de estados
-	maquinaEstados(id, comando_str, params);
+	despacharComando(id, comando_str, params);
 }
 
 //Funcion para encontrar el comando recibido
@@ -592,7 +656,7 @@ comandoID_t encontrarComandoid (const char* comando_str){
 	return comandoDesconocido;
 }
 //Funcion para enviar el comando
-void maquinaEstados (comandoID_t id, char* comando, char* params){
+void despacharComando (comandoID_t id, char* comando, char* params){
 	switch (id){
 	case frecBlinky:{
 		periodoBlinky(params);
@@ -766,16 +830,21 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size){
 			dma_buffer_activo= bufferA;
 			HAL_UARTEx_ReceiveToIdle_DMA(&huart2, rx_buffer_a, UART_RX_BUFFER_SIZE);
 		}
+		//Cambiamos de estado a recibir mensaje
+		fsm.estado = mensaje;
 	}
-
 }
 //Llamamos el callback para el blinky
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 	// Nos aseguramos de que sea el TIMER2 el que haga la interrupcion
     if (htim->Instance == TIM2){
-        // Hacemos un Toggle al blinky
-        HAL_GPIO_TogglePin(blinky_GPIO_Port, blinky_Pin);
+    	//Cambiamos de estado a blinky
+    	fsm.estado = blinky;
     }
+}
+void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc){
+	//Activamos la bandera que nos dice que el buffer esta lleno
+	//adc_data_ready== 1;
 }
 //Llamamos la funcion ErrorCallback en caso de que suceda un error
 void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart) {

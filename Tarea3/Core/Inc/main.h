@@ -62,8 +62,17 @@ typedef struct{
 	comandoID_t comando_id;
 }comando_t;
 
-//D
+//Creamos una enumeracion donde estan los estados posibles en la maquinaEstados
+typedef enum{
+	blinky,
+	mensaje,
+	IDLE
+}posiblesEstados;
 
+//Creamos una estructura donde almacenamos los posibles estados
+typedef struct{
+	posiblesEstados estado;
+}estadoActual;
 
 /* USER CODE END ET */
 
@@ -76,6 +85,8 @@ typedef struct{
 /* USER CODE BEGIN EM */
 
 /* USER CODE END EM */
+
+void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim);
 
 /* Exported functions prototypes ---------------------------------------------*/
 void Error_Handler(void);
