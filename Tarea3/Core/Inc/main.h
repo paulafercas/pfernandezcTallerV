@@ -87,6 +87,8 @@ void Error_Handler(void);
 /* Private defines -----------------------------------------------------------*/
 #define blinky_Pin GPIO_PIN_1
 #define blinky_GPIO_Port GPIOH
+#define signal_Pin GPIO_PIN_0
+#define signal_GPIO_Port GPIOA
 #define UsartTX_Pin GPIO_PIN_2
 #define UsartTX_GPIO_Port GPIOA
 #define UsartRX_Pin GPIO_PIN_3
