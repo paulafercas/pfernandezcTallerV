@@ -34,7 +34,7 @@
 //Definimos la variable que nos indica el tamaño de los buffer recibidos
 #define UART_RX_BUFFER_SIZE 64
 //Definimos el tamaño del buffer donde se va a almacenar el menu
-#define MENU_BUFFER_SIZE 1050
+#define MENU_BUFFER_SIZE 1150
 
 /* USER CODE END PD */
 
@@ -56,7 +56,7 @@ const comando_t tablaComandos[]={
 		{"blinky", 	frecBlinky},
 		{"led", 			ledRGB},
 		{"muestreo", tiempoMuestreo},
-		{"tamañoFFT",		tamañoFFT},
+		{"tamañoFFT",		tamanoFFT},
 		{"señalADC", imprimirADC},
 		{"equipo", imprimirConf},
 		{"espectroFFT", imprimirFFT},
@@ -104,11 +104,29 @@ static void MX_TIM2_Init(void);
 //Funcion que analiza el comando recibido
 void analizarComando (uint8_t* buffer, uint16_t size);
 //Funcion que envia el comando
-void enviarComando (comandoID_t id, char* comando, char* parametros);
+void maquinaEstados (comandoID_t id, char* comando, char* params);
 //Funcion para encontrar el comando que el usuario envió
 comandoID_t encontrarComandoid (const char* comando_str);
 //Funcion para imprimir el menu de opciones
 void menuComandos (char* params);
+
+//Funciones dentro de la maquina de estados
+//Funcion para cambiar el periodo del blinky
+void periodoBlinky (char* params);
+//Funcion para encender o apagar un led del RGB
+void estadoRGB (char* params);
+//Funcion para configurar el tiempo de muestreo
+void configurarMuestreo(char* params);
+//Funcion para configurar el tamaño de la FFT
+void configurarTamanoFFT (char* params);
+//Funcion para imprimir la señal ADC
+void printADC(void);
+//Funcion para imprimir las configuraciones del equipo
+void printConf(void);
+//Funcion para imprimir la FFT
+void printFFT(void);
+//Funcion para imprimir los valores mas importantes de la FFT
+void printImportantes(void);
 
 /* USER CODE END PFP */
 
@@ -164,8 +182,19 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+	  //Nos seguramos de que el buffer tenga un tamaño distinto de 0
+	  if (data_ready_packet.size >0){
+		  //Creamos una variable auxiliar donde guardamos el valor del buffer
+		  uint8_t* proc_buffer = 0;
+		  //Creamos una variable auxiliar donde guardamos el valor del tamaño del buffer
+		  uint16_t proc_size=0;
+		  //Asignamos los valores correspondientes a cada variable
+		  proc_buffer = data_ready_packet.buffer;
+		  proc_size = data_ready_packet.size;
 
-	  //Siempre vamos a llamar a la funcion maquina de estados
+		  //Procesamos los datos usando estas copias locales de forma segura
+		  analizarComando(proc_buffer, proc_size);
+	  }
 
     /* USER CODE END WHILE */
 
@@ -389,6 +418,8 @@ void menuComandos (char* params){
 	    offset += snprintf(menu_display_buffer + offset, MENU_BUFFER_SIZE - offset,
 	                       "| %-15s| %-66s| %-24s|\r\n", "espectroFFT", "Imprime el espectro FFT de la señal", "espectroFFT");
 	    offset += snprintf(menu_display_buffer + offset, MENU_BUFFER_SIZE - offset,
+	                       "| %-15s| %-66s| %-24s|\r\n", "principalFFT", "Imprime los valores más importantes de la FFT", "principalFFT");
+	    offset += snprintf(menu_display_buffer + offset, MENU_BUFFER_SIZE - offset,
 	                       "| %-15s| %-65s| %-24s|\r\n", "help", "Imprime el menu de comandos", "help");
 
 
@@ -404,11 +435,183 @@ void menuComandos (char* params){
 	    }
 
 }
+//Funcion para analizar el comando recibido
+void analizarComando (uint8_t* buffer, uint16_t size){
+	//Nos preguntamos si el tamaño de la entrada es mayor al asignado inicialmente
+	if (size >= UART_RX_BUFFER_SIZE){
+		//Nos aseguramos de que el ultimo caracter sea el nulo
+		buffer [UART_RX_BUFFER_SIZE-1]='\0';
+	} else{
+		//Nos aseguramos de que el ultimo caracter sea nulo
+		buffer[size]='\0';
+	}
+	//Usamos strok para extraer el comando y los parametros
+	//obtenemos el comando
+	char* comando_str = strtok ((char*)buffer, "");
+	//Obtenemos el resto de strings como parametros
+	char* params = strtok  (NULL, "");
+
+	//Preguntamos si el comando esta vacio no hacemos nada
+	if (comando_str==NULL){
+		return;
+	}
+	//Debemos identificar el comando que estamos utilizando
+	comandoID_t id =encontrarComandoid (comando_str);
+	//Enviamos el comando a la maquina de estados
+	maquinaEstados(id, comando_str, params);
+}
+
+//Funcion para encontrar el comando recibido
+comandoID_t encontrarComandoid (const char* comando_str){
+	for (int i =0; i< numeroComandos; i++){
+		//Utilizamos la funcion strcmp que compara bit a bit el comando
+		//ingresado con cada uno de los disponibles en la tabla
+		if (strcmp (comando_str, tablaComandos[i].comando_str)==0){
+			return tablaComandos[i].comando_id;
+		}
+	}
+	//Si no coincide con ninguno entonces se retorna el estado de
+	//comandoDesconocido
+	return comandoDesconocido;
+}
+//Funcion para enviar el comando
+void maquinaEstados (comandoID_t id, char* comando, char* params){
+	switch (id){
+	case frecBlinky:{
+		periodoBlinky(params);
+		break;
+	}
+	case ledRGB:{
+		estadoRGB (params);
+		break;
+	}
+	case tiempoMuestreo:{
+		configurarMuestreo(params);
+		break;
+	}
+	case tamanoFFT:{
+		configurarTamanoFFT (params);
+		break;
+	}
+	case imprimirADC:{
+		printADC();
+		break;
+	}
+	case imprimirConf:{
+		printConf();
+		break;
+	}
+	case imprimirFFT:{
+		printFFT();
+		break;
+	}
+	case importantesFFT:{
+		printImportantes();
+		break;
+	}
+	case help:{
+		menuComandos (NULL);
+		break;
+	}
+	case comandoDesconocido:{
+
+		break;
+	}
+	default:{
+		__NOP();
+		break;
+	}
+	}
+}
+//Funcion para configurar el periodo del blinky
+void periodoBlinky (char* params){
+	//Creamos un buffer auxiliar
+	char tx_buffer[80]={0};
+	//Preguntamos si los parametros estan nulos
+	if (params ==NULL){
+		//Guardamos en nuestro nuevo buffer el mensaje de que no hay periodo
+		sprintf (tx_buffer,"No se encontró periodo para el blinky, Escribe 'blinky <periodo en ms>'.\r\n");
+		//Transmitimos el mensaje
+		HAL_UART_Transmit_DMA(&huart2, (uint8_t *)tx_buffer, strlen(tx_buffer));
+		return;
+	}
+	//Convertimos el periodo dado por el usuario en un numero entero
+	int periodo_ms = atoi (params);
+	//Preguntamos si el valor del periodo es menor o igual que 0
+	if (periodo_ms <=0){
+		//Guardamos el mensaje de periodo invalido en el buffer auxiliar
+		sprintf (tx_buffer, "Periodo inválido. Debe ser mayor que 0\r\n");
+		HAL_UART_Transmit_DMA(&huart2,(uint8_t *) tx_buffer, strlen(tx_buffer));
+		return;
+	}
+	//Apagamos del TIMER2
+	HAL_TIM_Base_Stop_IT(&htim2);
+	//Modificamos el periodo del Timer
+	htim2.Init.Period = periodo_ms;
+	//Guardamos las nuevas configuraciones
+	HAL_TIM_Base_Init(&htim2);
+	// Encendemos nuevamente el Timer
+	HAL_TIM_Base_Start_IT(&htim2);
+
+}
+//Funcion para encender o apagar un led del RGB
+void estadoRGB (char* params){
+
+}
+//Funcion para configurar el tiempo de muestreo
+void configurarMuestreo(char* params){
+
+}
+//Funcion para configurar el tamaño de la FFT
+void configurarTamanoFFT (char* params){
+
+}
+//Funcion para imprimir la señal ADC
+void printADC(void){
+
+}
+//Funcion para imprimir las configuraciones del equipo
+void printConf(void){
+
+}
+//Funcion para imprimir la FFT
+void printFFT(void){
+
+}
+//Funcion para imprimir los valores mas importantes de la FFT
+void printImportantes(void){
+
+}
 //Llamamos al callback para la transmision por DMA
 void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart){
 	//Nos aseguramos de que es el USART2 el que esta haciendo la interrupcion
 	if (huart->Instance == USART2){
 
+	}
+}
+//Llamamos al callback para la recepcion del comando
+void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size){
+	//Preguntamos si estamos en el bufferA
+	if (dma_buffer_activo==bufferA){
+		//Guardamos el buffer recibido en el buffer_a
+		data_ready_packet.buffer = rx_buffer_a;
+		//Guardamos el tamaño del buffer
+		data_ready_packet.size = Size;
+		//Pasamos al buffer B
+		dma_buffer_activo= bufferB;
+		//Permitimos que e USART siga recibiendo
+		HAL_UARTEx_ReceiveToIdle_DMA(&huart2, rx_buffer_b, Size);
+	}
+	//Si el buffer se encuentra en el bufferb
+	else {
+		//Guardamos el buffer recibido en el buffer_a
+		data_ready_packet.buffer = rx_buffer_b;
+		//Guardamos el tamaño del buffer
+		data_ready_packet.size = Size;
+		//Pasamos al buffer A
+		dma_buffer_activo= bufferA;
+		//Permitimos que e USART siga recibiendo
+		HAL_UARTEx_ReceiveToIdle_DMA(&huart2, rx_buffer_a, Size);
 	}
 }
 //Llamamos el callback para el blinky

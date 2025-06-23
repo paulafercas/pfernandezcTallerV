@@ -45,7 +45,7 @@ typedef enum{
 	frecBlinky, //Cambiar la frecuencia del Bliny
 	ledRGB,		//Encender o apagar un led del RGB
 	tiempoMuestreo, //Configurar el tiempo de muestreo
-	tamañoFFT,		//Configurar el tamaño de la FFT
+	tamanoFFT,		//Configurar el tamaño de la FFT
 	imprimirADC,	//Imprimir señal ADC
 	imprimirConf,	//Imprimir configuracion del equipo
 	imprimirFFT, 	//Imprimir el espectro FFT
