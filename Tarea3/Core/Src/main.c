@@ -196,7 +196,6 @@ int main(void)
 
 		  //Procesamos los datos usando estas copias locales de forma segura
 		  analizarComando(proc_buffer, proc_size);
-		  memset(proc_buffer, 0, UART_RX_BUFFER_SIZE);
 	  }
 
     /* USER CODE END WHILE */
