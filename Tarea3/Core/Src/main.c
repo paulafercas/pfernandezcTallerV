@@ -407,7 +407,7 @@ void menuComandos (char* params){
 
 	    // Comandos con sus respectivas descripciones
 	    offset += snprintf(menu_display_buffer + offset, MENU_BUFFER_SIZE - offset,
-	                       "| %-15s| %-65s| %-24s|\r\n", "led", "Controla los led RGB", "led <color> <ON/OFF>");
+	                       "| %-15s| %-65s| %-24s|\r\n", "led", "Controla los led RGB con la funcion Toggle", "led <color>");
 	    offset += snprintf(menu_display_buffer + offset, MENU_BUFFER_SIZE - offset,
 	                       "| %-15s| %-65s| %-24s|\r\n", "blinky", "Configura el periodo del blinky", "blinky <periodo en ms>");
 	    offset += snprintf(menu_display_buffer + offset, MENU_BUFFER_SIZE - offset,
@@ -523,7 +523,9 @@ void maquinaEstados (comandoID_t id, char* comando, char* params){
 		break;
 	}
 	case comandoDesconocido:{
-
+        //Creamos un char donde almacenamos el mensaje de comando incorrecto
+        char incorrect_msg[] = "Comando desconocido \r\n";
+        HAL_UART_Transmit(&huart2, (uint8_t*)incorrect_msg, strlen(incorrect_msg), 1000);
 		break;
 	}
 	default:{
@@ -568,6 +570,38 @@ void periodoBlinky (char* params){
 }
 //Funcion para encender o apagar un led del RGB
 void estadoRGB (char* params){
+	//Creamos un buffer para transmitir los mensajes en caso de error
+	char tx_buffer[65];
+	//Preguntamos si params es nulo
+	if (params ==NULL){
+		//Mensaje para decirle al usuario que la forma de su comando está incorrecta
+		sprintf(tx_buffer, "No se encontraron los parámetros. Escribe 'led <color>'");
+		//Imprimimos el mensaje
+		HAL_UART_Transmit(&huart2, (uint8_t*) tx_buffer, strlen(tx_buffer), 1000);
+		return;
+	}
+	//Creamos una variable auxiliar donde almacenamos el color que escribio el usuario
+	char* color_str = strtok ((char*)params, "\r\n");
+	//Preguntamos si color_str es igual a alguno de los colores disponibles
+	if (strcmp (color_str, "rojo")==0){
+		//Cuando es igual a rojo entonces invertimos el estado del led rojo
+		HAL_GPIO_TogglePin(LedRojo_GPIO_Port, LedRojo_Pin);
+	}
+	else if (strcmp(color_str, "azul")==0){
+		//Cuando e sigual a azul invertimos el estado del led azul
+		HAL_GPIO_TogglePin(Ledazul_GPIO_Port, Ledazul_Pin);
+	}
+	else if (strcmp(color_str, "verde")==0){
+		//Cuando es igual a verde invertimos el estado del led verde
+		HAL_GPIO_TogglePin(LedVerde_GPIO_Port, LedVerde_Pin);
+	}
+	else {
+		//Si lo escrito no coincide con ningun color entonces imprimimos el mensaje de error
+		sprintf(tx_buffer, "Color no reconocido\r\n");
+		//Imprimimos el mensaje
+		HAL_UART_Transmit(&huart2, (uint8_t*) tx_buffer, strlen(tx_buffer), 1000);
+	}
+
 
 }
 //Funcion para configurar el tiempo de muestreo
