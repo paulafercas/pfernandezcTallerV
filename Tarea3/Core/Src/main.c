@@ -57,10 +57,10 @@ const comando_t tablaComandos[]={
 		{"led", 			ledRGB},
 		{"muestreo", tiempoMuestreo},
 		{"tamañoFFT",		tamanoFFT},
-		{"señalADC", imprimirADC},
-		{"equipo", imprimirConf},
-		{"espectroFFT", imprimirFFT},
-		{"help", help},
+		{"señalADC\r", imprimirADC},
+		{"equipo\r", imprimirConf},
+		{"espectroFFT\r", imprimirFFT},
+		{"help\r", help},
 };
 //Guardamos el numero de comandos en una variable
 const int numeroComandos = sizeof (tablaComandos)/sizeof (comando_t);
@@ -91,6 +91,9 @@ volatile bufferActivo dma_buffer_activo = bufferA;
 
 //Creamos la variable donde almacenaremos el menu inicial
 char menu_display_buffer[MENU_BUFFER_SIZE];
+
+//Inicializamos la variable que guarda el periodo del blinky
+int periodo_ms =250;
 
 /* USER CODE END PV */
 
@@ -142,7 +145,6 @@ void printImportantes(void);
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -151,14 +153,16 @@ int main(void)
   HAL_Init();
 
   /* USER CODE BEGIN Init */
-
+  HAL_GPIO_TogglePin(LedVerde_GPIO_Port, LedVerde_Pin); // Al arrancar
+  HAL_Delay(1000);
   /* USER CODE END Init */
 
   /* Configure the system clock */
   SystemClock_Config();
 
   /* USER CODE BEGIN SysInit */
-
+	HAL_GPIO_TogglePin(LedVerde_GPIO_Port, LedVerde_Pin); // Al arrancar
+	HAL_Delay(1000);
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
@@ -175,7 +179,6 @@ int main(void)
   dma_buffer_activo= bufferA;
   //Comenzamos la recepcion del comando
   HAL_UARTEx_ReceiveToIdle_DMA(&huart2, rx_buffer_a, UART_RX_BUFFER_SIZE);
-
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -184,6 +187,7 @@ int main(void)
   {
 	  //Nos seguramos de que el buffer tenga un tamaño distinto de 0
 	  if (data_ready_packet.size >0){
+		  HAL_GPIO_TogglePin(LedVerde_GPIO_Port, LedVerde_Pin);
 		  //Creamos una variable auxiliar donde guardamos el valor del buffer
 		  uint8_t* proc_buffer = 0;
 		  //Creamos una variable auxiliar donde guardamos el valor del tamaño del buffer
@@ -192,8 +196,13 @@ int main(void)
 		  proc_buffer = data_ready_packet.buffer;
 		  proc_size = data_ready_packet.size;
 
+		  //Borramos lo guardado en las variables globales para que no se acumulen los datos recibidos
+		  data_ready_packet.buffer = NULL;
+		  data_ready_packet.size =0;
+
 		  //Procesamos los datos usando estas copias locales de forma segura
 		  analizarComando(proc_buffer, proc_size);
+		  memset(proc_buffer, 0, UART_RX_BUFFER_SIZE);
 	  }
 
     /* USER CODE END WHILE */
@@ -447,9 +456,9 @@ void analizarComando (uint8_t* buffer, uint16_t size){
 	}
 	//Usamos strok para extraer el comando y los parametros
 	//obtenemos el comando
-	char* comando_str = strtok ((char*)buffer, "");
+	char* comando_str = strtok ((char*)buffer, " ");
 	//Obtenemos el resto de strings como parametros
-	char* params = strtok  (NULL, "");
+	char* params = strtok  (NULL, " ");
 
 	//Preguntamos si el comando esta vacio no hacemos nada
 	if (comando_str==NULL){
@@ -536,7 +545,7 @@ void periodoBlinky (char* params){
 		return;
 	}
 	//Convertimos el periodo dado por el usuario en un numero entero
-	int periodo_ms = atoi (params);
+	periodo_ms = atoi (params);
 	//Preguntamos si el valor del periodo es menor o igual que 0
 	if (periodo_ms <=0){
 		//Guardamos el mensaje de periodo invalido en el buffer auxiliar
@@ -591,28 +600,30 @@ void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart){
 }
 //Llamamos al callback para la recepcion del comando
 void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size){
-	//Preguntamos si estamos en el bufferA
-	if (dma_buffer_activo==bufferA){
-		//Guardamos el buffer recibido en el buffer_a
-		data_ready_packet.buffer = rx_buffer_a;
-		//Guardamos el tamaño del buffer
-		data_ready_packet.size = Size;
-		//Pasamos al buffer B
-		dma_buffer_activo= bufferB;
-		//Permitimos que e USART siga recibiendo
-		HAL_UARTEx_ReceiveToIdle_DMA(&huart2, rx_buffer_b, Size);
+	//Nos aseguramos de que estamos usando el USART2
+	if (huart->Instance ==USART2){
+		//Preguntamos si estamos en el bufferA
+		if (dma_buffer_activo==bufferA){
+			//Guardamos el buffer recibido en el buffer_a
+			data_ready_packet.buffer = rx_buffer_a;
+			//Guardamos el tamaño del buffer
+			data_ready_packet.size = Size;
+			//Pasamos al buffer B
+			dma_buffer_activo= bufferB;
+			HAL_UARTEx_ReceiveToIdle_DMA(&huart2, rx_buffer_b, UART_RX_BUFFER_SIZE);
+		}
+		//Si el buffer se encuentra en el bufferb
+		else {
+			//Guardamos el buffer recibido en el buffer_a
+			data_ready_packet.buffer = rx_buffer_b;
+			//Guardamos el tamaño del buffer
+			data_ready_packet.size = Size;
+			//Pasamos al buffer A
+			dma_buffer_activo= bufferA;
+			HAL_UARTEx_ReceiveToIdle_DMA(&huart2, rx_buffer_a, UART_RX_BUFFER_SIZE);
+		}
 	}
-	//Si el buffer se encuentra en el bufferb
-	else {
-		//Guardamos el buffer recibido en el buffer_a
-		data_ready_packet.buffer = rx_buffer_b;
-		//Guardamos el tamaño del buffer
-		data_ready_packet.size = Size;
-		//Pasamos al buffer A
-		dma_buffer_activo= bufferA;
-		//Permitimos que e USART siga recibiendo
-		HAL_UARTEx_ReceiveToIdle_DMA(&huart2, rx_buffer_a, Size);
-	}
+
 }
 //Llamamos el callback para el blinky
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
