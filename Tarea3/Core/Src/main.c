@@ -35,7 +35,6 @@
 #define UART_RX_BUFFER_SIZE 64
 //Definimos el tamaño del buffer donde se va a almacenar el menu
 #define MENU_BUFFER_SIZE 1150
-
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -57,10 +56,10 @@ const comando_t tablaComandos[]={
 		{"led", 			ledRGB},
 		{"muestreo", tiempoMuestreo},
 		{"tamañoFFT",		tamanoFFT},
-		{"señalADC\r", imprimirADC},
-		{"equipo\r", imprimirConf},
-		{"espectroFFT\r", imprimirFFT},
-		{"help\r", help},
+		{"señalADC", imprimirADC},
+		{"equipo", imprimirConf},
+		{"espectroFFT", imprimirFFT},
+		{"help", help},
 };
 //Guardamos el numero de comandos en una variable
 const int numeroComandos = sizeof (tablaComandos)/sizeof (comando_t);
@@ -153,16 +152,12 @@ int main(void)
   HAL_Init();
 
   /* USER CODE BEGIN Init */
-  HAL_GPIO_TogglePin(LedVerde_GPIO_Port, LedVerde_Pin); // Al arrancar
-  HAL_Delay(1000);
   /* USER CODE END Init */
 
   /* Configure the system clock */
   SystemClock_Config();
 
   /* USER CODE BEGIN SysInit */
-	HAL_GPIO_TogglePin(LedVerde_GPIO_Port, LedVerde_Pin); // Al arrancar
-	HAL_Delay(1000);
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
@@ -187,7 +182,6 @@ int main(void)
   {
 	  //Nos seguramos de que el buffer tenga un tamaño distinto de 0
 	  if (data_ready_packet.size >0){
-		  HAL_GPIO_TogglePin(LedVerde_GPIO_Port, LedVerde_Pin);
 		  //Creamos una variable auxiliar donde guardamos el valor del buffer
 		  uint8_t* proc_buffer = 0;
 		  //Creamos una variable auxiliar donde guardamos el valor del tamaño del buffer
@@ -439,8 +433,8 @@ void menuComandos (char* params){
 	        HAL_UART_Transmit_DMA(&huart2, (uint8_t*)menu_display_buffer, strlen(menu_display_buffer));
 	    } else {
 	        //Creamos un char donde almacenamos el mensaje de buffer ocupado
-	        char busy_msg[] = "UART busy. Try 'menu' again.\r\n";
-	        HAL_UART_Transmit(&huart2, (uint8_t*)busy_msg, strlen(busy_msg), HAL_MAX_DELAY);
+	        char busy_msg[] = "UART ocupado. Intenta 'help'.\r\n";
+	        HAL_UART_Transmit_DMA(&huart2, (uint8_t*)busy_msg, strlen(busy_msg));
 	    }
 
 }
@@ -459,11 +453,17 @@ void analizarComando (uint8_t* buffer, uint16_t size){
 	char* comando_str = strtok ((char*)buffer, " ");
 	//Obtenemos el resto de strings como parametros
 	char* params = strtok  (NULL, " ");
+	//Preguntamos si tenemos parametros para aquellas entradas sin parametros
+	if (params == NULL){
+		//Limpiamos el comando_str en caso de que tenga \r y \n
+		comando_str[strcspn(comando_str, "\r\n")] = 0;
+	}
 
 	//Preguntamos si el comando esta vacio no hacemos nada
 	if (comando_str==NULL){
 		return;
 	}
+
 	//Debemos identificar el comando que estamos utilizando
 	comandoID_t id =encontrarComandoid (comando_str);
 	//Enviamos el comando a la maquina de estados
@@ -534,6 +534,9 @@ void maquinaEstados (comandoID_t id, char* comando, char* params){
 }
 //Funcion para configurar el periodo del blinky
 void periodoBlinky (char* params){
+	/*char debug_buffer[64];
+	snprintf(debug_buffer, sizeof(debug_buffer), "DEBUG param: '%s'\r\n", params);
+	HAL_UART_Transmit(&huart2, (uint8_t*)debug_buffer, strlen(debug_buffer), HAL_MAX_DELAY);*/
 	//Creamos un buffer auxiliar
 	char tx_buffer[80]={0};
 	//Preguntamos si los parametros estan nulos
@@ -541,7 +544,7 @@ void periodoBlinky (char* params){
 		//Guardamos en nuestro nuevo buffer el mensaje de que no hay periodo
 		sprintf (tx_buffer,"No se encontró periodo para el blinky, Escribe 'blinky <periodo en ms>'.\r\n");
 		//Transmitimos el mensaje
-		HAL_UART_Transmit_DMA(&huart2, (uint8_t *)tx_buffer, strlen(tx_buffer));
+		HAL_UART_Transmit(&huart2, (uint8_t *)tx_buffer, strlen(tx_buffer), 1000);
 		return;
 	}
 	//Convertimos el periodo dado por el usuario en un numero entero
@@ -550,7 +553,7 @@ void periodoBlinky (char* params){
 	if (periodo_ms <=0){
 		//Guardamos el mensaje de periodo invalido en el buffer auxiliar
 		sprintf (tx_buffer, "Periodo inválido. Debe ser mayor que 0\r\n");
-		HAL_UART_Transmit_DMA(&huart2,(uint8_t *) tx_buffer, strlen(tx_buffer));
+		HAL_UART_Transmit(&huart2,(uint8_t *) tx_buffer, strlen(tx_buffer), 1000);
 		return;
 	}
 	//Apagamos del TIMER2
@@ -595,7 +598,6 @@ void printImportantes(void){
 void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart){
 	//Nos aseguramos de que es el USART2 el que esta haciendo la interrupcion
 	if (huart->Instance == USART2){
-
 	}
 }
 //Llamamos al callback para la recepcion del comando
@@ -633,6 +635,18 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
         HAL_GPIO_TogglePin(blinky_GPIO_Port, blinky_Pin);
     }
 }
+//Llamamos la funcion ErrorCallback en caso de que suceda un error
+void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart) {
+    // Por ejemplo: reiniciar la recepción si hubo error
+    if (huart->Instance == USART2) {
+        if (dma_buffer_activo == bufferA) {
+            HAL_UARTEx_ReceiveToIdle_DMA(&huart2, rx_buffer_a, UART_RX_BUFFER_SIZE);
+        } else {
+            HAL_UARTEx_ReceiveToIdle_DMA(&huart2, rx_buffer_b, UART_RX_BUFFER_SIZE);
+        }
+    }
+}
+
 
 /* USER CODE END 4 */
 
