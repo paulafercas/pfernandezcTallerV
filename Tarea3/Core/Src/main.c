@@ -21,7 +21,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "arm_math.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -112,6 +112,8 @@ volatile uint16_t adc_dma_buffer [ADC_BUFFER_SIZE];
 
 //Bandera para avisar que el buffer de ADC está listo
 uint8_t adc_data_ready = 0;
+//Variable donde se guardara el adc convertido a float
+uint16_t adc_raw_buffer[ADC_BUFFER_SIZE];
 
 //UART/DMA externos
 extern UART_HandleTypeDef huart2;
@@ -162,6 +164,9 @@ void printImportantes(void);
 
 //Funcion maquina de estados
 void maquinaEstados (void);
+
+//Funcion para convertir los valores de ADC a float32
+void convertirADC (void);
 
 /* USER CODE END PFP */
 
@@ -811,7 +816,13 @@ void configurarTamanoFFT (char* params){
 //Funcion para imprimir la señal ADC
 void printADC(void){
 	 HAL_ADC_Start_DMA(&hadc1, (uint32_t *)adc_dma_buffer, ADC_BUFFER_SIZE);
-
+	 if (adc_data_ready== 1){
+		 convertirADC();
+		 adc_data_ready =0;
+	 }
+	 else{
+		 __NOP();
+	 }
 }
 //Funcion para imprimir las configuraciones del equipo
 void printConf(void){
@@ -823,6 +834,12 @@ void printFFT(void){
 }
 //Funcion para imprimir los valores mas importantes de la FFT
 void printImportantes(void){
+
+}
+//Funcion para convertir el buffer del ADC a float32
+void convertirADC (void){
+	//Creamos un factor de conversion
+    const float32_t conversion_factor = 1.0f / (float32_t)ADC_MAX_VALUE;
 
 }
 //Llamamos al callback para la transmision por DMA
@@ -869,7 +886,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 }
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc){
 	//Activamos la bandera que nos dice que el buffer esta lleno
-	//adc_data_ready== 1;
+	adc_data_ready= 1;
 }
 //Llamamos la funcion ErrorCallback en caso de que suceda un error
 void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart) {

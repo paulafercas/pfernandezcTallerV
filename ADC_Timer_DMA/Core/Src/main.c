@@ -483,7 +483,7 @@ void HAL_UART_RxCplCallback (UART_HandleTypeDef *huart){
 }
 
 void HAL_ADC_ConvCplCallback (ADC_HandleTypeDef *hadc){
-	__NOP();
+
 }
 /* USER CODE END 4 */
 
