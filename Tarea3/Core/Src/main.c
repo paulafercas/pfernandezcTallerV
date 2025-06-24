@@ -63,7 +63,7 @@ const comando_t tablaComandos[]={
 		{"blinky", 	frecBlinky},
 		{"led", 			ledRGB},
 		{"muestreo", tiempoMuestreo},
-		{"tamañoFFT",		tamanoFFT},
+		{"tamanoFFT",		tamanoFFT},
 		{"señalADC", imprimirADC},
 		{"equipo", imprimirConf},
 		{"espectroFFT", imprimirFFT},
@@ -101,7 +101,12 @@ char menu_display_buffer[MENU_BUFFER_SIZE];
 
 //Inicializamos la variable que guarda el periodo del blinky
 int periodo_ms =250;
-
+//Inicializamos la variable donde almacenaremos el periodo del Timer3
+int periodoTimer3 = 362;
+//Inicializamos la variable donde guardaremos el valor de la frecuencia de muestreo
+float frecMuestreo =44.1;
+//Inicializamos la variable donde almacenaremos el tamaño de la FFT
+int puntosFFT = 1024;
 //Creamos el arreglo donde se van a almacenar los valores de la señal
 volatile uint16_t adc_dma_buffer [ADC_BUFFER_SIZE];
 
@@ -216,7 +221,9 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  maquinaEstados();
+	  if(fsm.estado != IDLE){
+		  maquinaEstados();
+	  }
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -585,7 +592,7 @@ void menuComandos (char* params){
 	    offset += snprintf(menu_display_buffer + offset, MENU_BUFFER_SIZE - offset,
 	                       "| %-15s| %-65s| %-24s|\r\n", "muestreo", "Configura el tiempo de muestreo (44.1kHz,48kHz, 96kHz, 128kHz)", "muestreo <valor>");
 	    offset += snprintf(menu_display_buffer + offset, MENU_BUFFER_SIZE - offset,
-	                       "| %-16s| %-66s| %-26s|\r\n", "tamañoFFT", "Configura el tamaño de la FFT (1024, 2048)", "tamañoFFT <tamaño>");
+	                       "| %-16s| %-66s| %-25s|\r\n", "tamañoFFT", "Configura el tamaño de la FFT (1024, 2048)", "tamanoFFT <tamaño>");
 	    offset += snprintf(menu_display_buffer + offset, MENU_BUFFER_SIZE - offset,
 	                       "| %-16s| %-66s| %-25s|\r\n", "señalADC", "Imprime la señal ADC muestreada", "señalADC");
 	    offset += snprintf(menu_display_buffer + offset, MENU_BUFFER_SIZE - offset,
@@ -778,14 +785,32 @@ void estadoRGB (char* params){
 }
 //Funcion para configurar el tiempo de muestreo
 void configurarMuestreo(char* params){
-
+	//Asignamos una posicion de memoria al caracter que no se pueda convertir a float
+	char *endptr;
+	//Le asignamos un valor nulo a esa posicion de memoria
+	endptr = NULL;
+	//Convertimos el parametro a un float
+	frecMuestreo = strtof (params, &endptr);
+	//Hallamos el valor del periodo que debe tener el timer3 para esa frecuencia de muestreo
+	periodoTimer3 = 16000/frecMuestreo;
+	//Apagamos del TIMER3
+	HAL_TIM_Base_Stop(&htim3);
+	//Modificamos el periodo del Timer
+	htim2.Init.Period = periodoTimer3;
+	//Guardamos las nuevas configuraciones
+	HAL_TIM_Base_Init(&htim3);
+	// Encendemos nuevamente el Timer
+	HAL_TIM_Base_Start_IT(&htim3);
 }
+
 //Funcion para configurar el tamaño de la FFT
 void configurarTamanoFFT (char* params){
+	puntosFFT = atoi(params);
 
 }
 //Funcion para imprimir la señal ADC
 void printADC(void){
+	 HAL_ADC_Start_DMA(&hadc1, (uint32_t *)adc_dma_buffer, ADC_BUFFER_SIZE);
 
 }
 //Funcion para imprimir las configuraciones del equipo
