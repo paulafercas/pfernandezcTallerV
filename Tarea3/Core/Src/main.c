@@ -37,11 +37,12 @@
 //Definimos el tamano del buffer donde se va a almacenar el menu
 #define MENU_BUFFER_SIZE 1150
 //Definimos el tamano del buffer donde almacenaremos los valores de la senal
-#define ADC_BUFFER_SIZE 1024
+#define ADC_BUFFER_SIZE 2048
 //DEfinimos la resolucion del ADC
 #define ADC_RESOLUTION  12
 //Definimos el numero maximo de valores para el ADC
 #define ADC_MAX_VALUE ((1 << ADC_RESOLUTION) - 1)
+
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -72,6 +73,7 @@ const comando_t tablaComandos[]={
 		{"senalADC", imprimirADC},
 		{"equipo", imprimirConf},
 		{"espectroFFT", imprimirFFT},
+		{"principalFFT", importantesFFT},
 		{"help", help},
 };
 //Guardamos el numero de comandos en una variable
@@ -121,6 +123,15 @@ uint8_t adc_data_ready = 0;
 uint16_t adc_raw_buffer[ADC_BUFFER_SIZE];
 //Variable donde se almacena la senal normalizada
 float32_t dsp_input_buffer[ADC_BUFFER_SIZE];
+//Variable donde vamos a almacenar los puntos de salida de la fft
+float32_t fft_output_buffer[ADC_BUFFER_SIZE/2];
+//Variable donde almacenamos la instancia con la cual realizaremos la FFT
+arm_rfft_fast_instance_f32 rfft_instance;
+//Variable donde almacenamos las magnitudes
+float32_t fft_magnitudes[ADC_BUFFER_SIZE / 2];
+//Creamos la variable que va a almacenar la magnitud mayor
+float32_t max_magnitude;
+uint32_t  max_magnitude_index;
 
 //UART/DMA externos
 extern UART_HandleTypeDef huart2;
@@ -168,6 +179,8 @@ void printConf(void);
 void printFFT(void);
 //Funcion para imprimir los valores mas importantes de la FFT
 void printImportantes(void);
+//Funcion para cacular la FFT
+void calculoFFT (void);
 
 //Funcion maquina de estados
 void maquinaEstados (void);
@@ -225,6 +238,8 @@ int main(void)
   HAL_UARTEx_ReceiveToIdle_DMA(&huart2, rx_buffer_a, UART_RX_BUFFER_SIZE);
   //Inicializamos el ADC
   HAL_ADC_Start_DMA(&hadc1, (uint32_t *)adc_dma_buffer, ADC_BUFFER_SIZE);
+  //Llamamos la instancia con el tamaño de la FFT inicial
+  arm_rfft_fast_init_f32(&rfft_instance,puntosFFT);
 
   /* USER CODE END 2 */
 
@@ -714,8 +729,8 @@ void despacharComando (comandoID_t id, char* comando, char* params){
 	}
 	case comandoDesconocido:{
         //Creamos un char donde almacenamos el mensaje de comando incorrecto
-        char incorrect_msg[] = "Comando desconocido \r\n";
-        HAL_UART_Transmit_DMA(&huart2, (uint8_t*)incorrect_msg, strlen(incorrect_msg));
+        char incorrect_msg[30] = "Comando desconocido \r\n";
+        HAL_UART_Transmit(&huart2, (uint8_t*)incorrect_msg, strlen(incorrect_msg), 1000);
 		break;
 	}
 	default:{
@@ -736,7 +751,7 @@ void periodoBlinky (char* params){
 		//Guardamos en nuestro nuevo buffer el mensaje de que no hay periodo
 		sprintf( tx_buffer,"No se encontró periodo para el blinky, Escribe blinky <periodo en ms> \r\n");
 		//Transmitimos el mensaje
-		HAL_UART_Transmit_DMA(&huart2, (uint8_t *)tx_buffer, strlen(tx_buffer));
+		HAL_UART_Transmit(&huart2, (uint8_t *)tx_buffer, strlen(tx_buffer), 1000);
 		return;
 	}
 	//Convertimos el periodo dado por el usuario en un numero entero
@@ -745,7 +760,7 @@ void periodoBlinky (char* params){
 	if (periodo_ms <=0){
 		//Guardamos el mensaje de periodo invalido en el buffer auxiliar
 		sprintf (tx_buffer, "Periodo inválido. Debe ser mayor que 0\r\n");
-		HAL_UART_Transmit_DMA(&huart2,(uint8_t *) tx_buffer, strlen(tx_buffer));
+		HAL_UART_Transmit(&huart2,(uint8_t *) tx_buffer, strlen(tx_buffer), 1000);
 		return;
 	}
 	//Apagamos del TIMER2
@@ -767,7 +782,7 @@ void estadoRGB (char* params){
 		//Mensaje para decirle al usuario que la forma de su comando está incorrecta
 		sprintf(tx_buffer, "No se encontraron los parámetros. Escribe 'led <color>'");
 		//Imprimimos el mensaje
-		HAL_UART_Transmit_DMA(&huart2, (uint8_t*) tx_buffer, strlen(tx_buffer));
+		HAL_UART_Transmit(&huart2, (uint8_t*) tx_buffer, strlen(tx_buffer), 1000);
 		return;
 	}
 	//Creamos una variable auxiliar donde almacenamos el color que escribio el usuario
@@ -816,6 +831,17 @@ void configurarMuestreo(char* params){
 void configurarTamanoFFT (char* params){
 	//Definimos los puntosFFT mediante los parametros
 	puntosFFT = atoi(params);
+	if (puntosFFT== 1024){
+		arm_rfft_fast_init_f32(&rfft_instance,puntosFFT);
+	}
+	else if (puntosFFT== 2048){
+		arm_rfft_fast_init_f32(&rfft_instance,puntosFFT);
+	}
+	else{
+		char tx_buffer [30];
+		sprintf (tx_buffer, "Valor de tamano no aceptado\r\n");
+		HAL_UART_Transmit_DMA(&huart2, (uint8_t*) tx_buffer, strlen(tx_buffer));
+	}
 
 }
 //Funcion para imprimir la senal ADC
@@ -840,45 +866,60 @@ void printADC(void){
 }
 //Funcion para imprimir las configuraciones del equipo
 void printConf(void){
+	char tx_buffer[50];
+	sprintf (tx_buffer, "Frecuencia muestreo %.3f Hz\r\n", frecMuestreo);
+	HAL_UART_Transmit(&huart2,(uint8_t *)tx_buffer, strlen(tx_buffer), 1000);
+	sprintf (tx_buffer, "Tamano de la FFT %u \r\n", puntosFFT);
+	HAL_UART_Transmit(&huart2,(uint8_t *)tx_buffer, strlen(tx_buffer), 1000);
 
 }
 //Funcion para imprimir la FFT
 void printFFT(void){
+	//Llamamos a la funcion que calcula la fft
+	calculoFFT();
+	//Creamos una variable auxiliar donde se van a almacenar los datos de la fft en forma entero sin signo
+	 char tx_line_buffer[32];
+	 //Ciclo for para guardar cada uno de los elementos del fft_output_buffer al tx_line_buffer
+	 for (uint16_t i = 0; i < puntosFFT/2; i++) {
+		 //Funcion para hacer las asignaciones correspondientes
+		 int aux = sprintf(tx_line_buffer, "%.3f\n", fft_magnitudes[i]);
+		 HAL_UART_Transmit_DMA(&huart2,(uint8_t*) tx_line_buffer, aux);
+	 }
+
+
+}
+//Funcion para calcular la FFT
+void calculoFFT(void){
 	//Creamos un factor de conversion
-    const float32_t conversion_factor = 1.0f / (float32_t)ADC_MAX_VALUE;
+    const float32_t conversion_factor = 1.0f / ADC_MAX_VALUE;
     for (int i = 0; i < ADC_BUFFER_SIZE; i++) {
         // Normalizamos los valores del adc_dma_buffer
         dsp_input_buffer[i] = ((float32_t)adc_dma_buffer[i]) * conversion_factor;
     }
-    //Variable donde vamos a almacenar los puntos de salida de la fft
-    float32_t fft_output_buffer[puntosFFT];
-    //Variable donde almacenamos la instancia con la cual realizaremos la FFT
-    arm_rfft_fast_instance_f32 rfft_instance;
-    //Variable donde almacenamos las magnitudes
-    float32_t fft_magnitudes[puntosFFT / 2];
-    arm_status status = arm_rfft_fast_init_f32(&rfft_instance,puntosFFT);
-	if (status != ARM_MATH_SUCCESS) {
-		// Handle error, perhaps an unsupported FFT size
-		return;
-	}
 	//Funcion para hallar la fft del input del ADC
 	arm_rfft_fast_f32(&rfft_instance, dsp_input_buffer,fft_output_buffer,0);
 	//Funcion para hallar las magnitudes de la fft
-	arm_cmplx_mag_f32(fft_output_buffer,fft_magnitudes, puntosFFT / 2);
-
-	//Creamos una variable auxiliar donde se van a almacenar los datos de la fft en forma entero sin signo
-	 char tx_line_buffer[20];
-	 //Ciclo for para guardar cada uno de los elementos del fft_output_buffer al tx_line_buffer
-	 for (uint16_t i = 0; i < puntosFFT; i++) {
-		 //Funcion para hacer las asignaciones correspondientes
-		 sprintf(tx_line_buffer, "%.4f\n", fft_magnitudes[i]);
-		 HAL_UART_Transmit_DMA(&huart2,(uint8_t*) tx_line_buffer, strlen(tx_line_buffer));
-	 }
-
+	arm_cmplx_mag_f32(fft_output_buffer,fft_magnitudes, (puntosFFT / 2));
 }
+
 //Funcion para imprimir los valores mas importantes de la FFT
 void printImportantes(void){
-
+	//Llamamos a la funcion que calcula la fft
+	calculoFFT();
+	//Creamos un buffer auxiliar
+	char tx_buffer[40];
+	//Hallamos la frecuencia principal
+	arm_max_f32(&fft_magnitudes[1],(puntosFFT/2) - 1, &max_magnitude,&max_magnitude_index);
+	max_magnitude_index = max_magnitude_index + 1;
+	//Calculamos la frecuencia de resolucion
+    float frequency_resolution = 1000*frecMuestreo / (puntosFFT);
+    //Encontramos la frecuencia dominante
+    float dominant_frequency = max_magnitude_index * frequency_resolution;
+    //Guardamos en el tx_buffer el valor de la frecuencia dominante
+    sprintf(tx_buffer, "Frecuencia dominante: %.3f Hz\n", dominant_frequency);
+    HAL_UART_Transmit(&huart2,(uint8_t *)tx_buffer, strlen(tx_buffer), 1000);
+    sprintf(tx_buffer, "Magnitud: %.2f\r\n\n", max_magnitude);
+    HAL_UART_Transmit(&huart2,(uint8_t *)tx_buffer, strlen(tx_buffer), 1000);
 }
 
 
