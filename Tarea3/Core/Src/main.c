@@ -21,6 +21,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#define ARM_MATH_CM4
 #include "arm_math.h"
 /* USER CODE END Includes */
 
@@ -37,6 +38,10 @@
 #define MENU_BUFFER_SIZE 1150
 //Definimos el tamaño del buffer donde almacenaremos los valores de la señal
 #define ADC_BUFFER_SIZE 1024
+//DEfinimos la resolucion del ADC
+#define ADC_RESOLUTION  12
+//Definimos el numero maximo de valores para el ADC
+#define ADC_MAX_VALUE ((1 << ADC_RESOLUTION) - 1)
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -114,6 +119,8 @@ volatile uint16_t adc_dma_buffer [ADC_BUFFER_SIZE];
 uint8_t adc_data_ready = 0;
 //Variable donde se guardara el adc convertido a float
 uint16_t adc_raw_buffer[ADC_BUFFER_SIZE];
+//Variable donde se almacena la señal normalizada
+float32_t dsp_input_buffer[ADC_BUFFER_SIZE];
 
 //UART/DMA externos
 extern UART_HandleTypeDef huart2;
@@ -840,7 +847,10 @@ void printImportantes(void){
 void convertirADC (void){
 	//Creamos un factor de conversion
     const float32_t conversion_factor = 1.0f / (float32_t)ADC_MAX_VALUE;
-
+    for (int i = 0; i < ADC_BUFFER_SIZE; i++) {
+        // Option A: Normalize to [0.0, 1.0]
+        dsp_input_buffer[i] = ((float32_t)adc_dma_buffer[i]) * conversion_factor;
+    }
 }
 //Llamamos al callback para la transmision por DMA
 void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart){
