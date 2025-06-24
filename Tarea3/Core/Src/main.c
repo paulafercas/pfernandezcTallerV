@@ -42,7 +42,8 @@
 #define ADC_RESOLUTION  12
 //Definimos el numero maximo de valores para el ADC
 #define ADC_MAX_VALUE ((1 << ADC_RESOLUTION) - 1)
-
+//Creamos un Epsilon de tolerancia de caracter float
+#define EPSILON 0.01f
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -131,7 +132,10 @@ arm_rfft_fast_instance_f32 rfft_instance;
 float32_t fft_magnitudes[ADC_BUFFER_SIZE / 2];
 //Creamos la variable que va a almacenar la magnitud mayor
 float32_t max_magnitude;
+//Indice donde se encuentra la frecuencia dominante
 uint32_t  max_magnitude_index;
+//Periodo del timer3 en segundos
+float segTimer3;
 
 //UART/DMA externos
 extern UART_HandleTypeDef huart2;
@@ -181,7 +185,8 @@ void printFFT(void);
 void printImportantes(void);
 //Funcion para cacular la FFT
 void calculoFFT (void);
-
+//Funcion para configurar el periodo del TIM3
+void configurarTIM3 (void);
 //Funcion maquina de estados
 void maquinaEstados (void);
 
@@ -815,6 +820,29 @@ void configurarMuestreo(char* params){
 	endptr = NULL;
 	//Convertimos el parametro a un float
 	frecMuestreo = strtof (params, &endptr);
+	if (fabsf(frecMuestreo-44.1f)<EPSILON){
+		configurarTIM3();
+	}
+	else if(frecMuestreo== 48){
+		configurarTIM3();
+	}
+	else if (frecMuestreo== 96){
+		configurarTIM3();
+	}
+	else if (frecMuestreo== 128){
+		configurarTIM3();
+	}
+	else {
+		//Creamos un buffer auxiliar para el mensaje de error
+		char tx_buffer[88];
+		//Guardamos el mensaje de valor de frecuencia invalido
+		sprintf (tx_buffer, "Frecuencia invalida\r\n");
+		HAL_UART_Transmit(&huart2,(uint8_t *) tx_buffer, strlen(tx_buffer), 1000);
+	}
+}
+
+//Funcion para configurar el periodo del timer3
+void configurarTIM3 (void){
 	//Hallamos el valor del periodo que debe tener el timer3 para esa frecuencia de muestreo
 	periodoTimer3 = 16000/frecMuestreo;
 	//Apagamos del TIMER3
@@ -826,7 +854,6 @@ void configurarMuestreo(char* params){
 	// Encendemos nuevamente el Timer
 	HAL_TIM_Base_Start_IT(&htim3);
 }
-
 //Funcion para configurar el tamano de la FFT
 void configurarTamanoFFT (char* params){
 	//Definimos los puntosFFT mediante los parametros
@@ -866,11 +893,26 @@ void printADC(void){
 }
 //Funcion para imprimir las configuraciones del equipo
 void printConf(void){
-	char tx_buffer[50];
-	sprintf (tx_buffer, "Frecuencia muestreo %.3f Hz\r\n", frecMuestreo);
+	segTimer3 = periodoTimer3/16;
+	//Creamos un buffer auxiliar
+	char tx_buffer[100];
+	//Almacenamos la frecuencia dominante
+	sprintf (tx_buffer, "Frecuencia de muestreo %.3f Hz\r\n", frecMuestreo);
+	//Imprimimos por primera vez
 	HAL_UART_Transmit(&huart2,(uint8_t *)tx_buffer, strlen(tx_buffer), 1000);
+	//Almacenamos la magnitud de la frecuencia
 	sprintf (tx_buffer, "Tamano de la FFT %u \r\n", puntosFFT);
+	//Imprimimos por segunda vez
 	HAL_UART_Transmit(&huart2,(uint8_t *)tx_buffer, strlen(tx_buffer), 1000);
+	//Almacenamos el valor del ARR
+	sprintf (tx_buffer, "ARR %u\r\n", periodoTimer3);
+	//Imprimimos por tercera vez
+	HAL_UART_Transmit(&huart2,(uint8_t *)tx_buffer, strlen(tx_buffer), 1000);
+	//Almacenamos el valor del periodo del timer en s
+	sprintf (tx_buffer, "Periodo del TIM3 en us %.6f\r\n", segTimer3);
+	//Imprimimos por cuarta vez
+	HAL_UART_Transmit(&huart2,(uint8_t *)tx_buffer, strlen(tx_buffer), 1000);
+
 
 }
 //Funcion para imprimir la FFT
