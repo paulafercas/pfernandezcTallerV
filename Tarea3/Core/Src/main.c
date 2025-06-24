@@ -32,11 +32,11 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-//Definimos la variable que nos indica el tamaño de los buffer recibidos
+//Definimos la variable que nos indica el tamano de los buffer recibidos
 #define UART_RX_BUFFER_SIZE 64
-//Definimos el tamaño del buffer donde se va a almacenar el menu
+//Definimos el tamano del buffer donde se va a almacenar el menu
 #define MENU_BUFFER_SIZE 1150
-//Definimos el tamaño del buffer donde almacenaremos los valores de la señal
+//Definimos el tamano del buffer donde almacenaremos los valores de la senal
 #define ADC_BUFFER_SIZE 1024
 //DEfinimos la resolucion del ADC
 #define ADC_RESOLUTION  12
@@ -69,7 +69,7 @@ const comando_t tablaComandos[]={
 		{"led", 			ledRGB},
 		{"muestreo", tiempoMuestreo},
 		{"tamanoFFT",		tamanoFFT},
-		{"señalADC", imprimirADC},
+		{"senalADC", imprimirADC},
 		{"equipo", imprimirConf},
 		{"espectroFFT", imprimirFFT},
 		{"help", help},
@@ -95,7 +95,7 @@ typedef struct{
 	uint16_t size;
 }DataPacket;
 
-//Inicializamos la estructura DataPacket con el buffer vacío y el tamaño
+//Inicializamos la estructura DataPacket con el buffer vacío y el tamano
 //igual a 0
 volatile DataPacket data_ready_packet ={.buffer= NULL, .size=0};
 //Inicializamos la variable del buffer activo con el buffer a
@@ -110,16 +110,16 @@ int periodo_ms =250;
 int periodoTimer3 = 362;
 //Inicializamos la variable donde guardaremos el valor de la frecuencia de muestreo
 float frecMuestreo =44.1;
-//Inicializamos la variable donde almacenaremos el tamaño de la FFT
+//Inicializamos la variable donde almacenaremos el tamano de la FFT
 int puntosFFT = 1024;
-//Creamos el arreglo donde se van a almacenar los valores de la señal
+//Creamos el arreglo donde se van a almacenar los valores de la senal
 volatile uint16_t adc_dma_buffer [ADC_BUFFER_SIZE];
 
 //Bandera para avisar que el buffer de ADC está listo
 uint8_t adc_data_ready = 0;
 //Variable donde se guardara el adc convertido a float
 uint16_t adc_raw_buffer[ADC_BUFFER_SIZE];
-//Variable donde se almacena la señal normalizada
+//Variable donde se almacena la senal normalizada
 float32_t dsp_input_buffer[ADC_BUFFER_SIZE];
 
 //UART/DMA externos
@@ -158,9 +158,9 @@ void periodoBlinky (char* params);
 void estadoRGB (char* params);
 //Funcion para configurar el tiempo de muestreo
 void configurarMuestreo(char* params);
-//Funcion para configurar el tamaño de la FFT
+//Funcion para configurar el tamano de la FFT
 void configurarTamanoFFT (char* params);
-//Funcion para imprimir la señal ADC
+//Funcion para imprimir la senal ADC
 void printADC(void);
 //Funcion para imprimir las configuraciones del equipo
 void printConf(void);
@@ -171,9 +171,6 @@ void printImportantes(void);
 
 //Funcion maquina de estados
 void maquinaEstados (void);
-
-//Funcion para convertir los valores de ADC a float32
-void convertirADC (void);
 
 /* USER CODE END PFP */
 
@@ -226,6 +223,8 @@ int main(void)
   dma_buffer_activo= bufferA;
   //Comenzamos la recepcion del comando
   HAL_UARTEx_ReceiveToIdle_DMA(&huart2, rx_buffer_a, UART_RX_BUFFER_SIZE);
+  //Inicializamos el ADC
+  HAL_ADC_Start_DMA(&hadc1, (uint32_t *)adc_dma_buffer, ADC_BUFFER_SIZE);
 
   /* USER CODE END 2 */
 
@@ -558,11 +557,11 @@ void maquinaEstados (void){
 		break;
 	}
 	case mensaje:{
-		  //Nos seguramos de que el buffer tenga un tamaño distinto de 0
+		  //Nos seguramos de que el buffer tenga un tamano distinto de 0
 		  if (data_ready_packet.size >0){
 			  //Creamos una variable auxiliar donde guardamos el valor del buffer
 			  uint8_t* proc_buffer = 0;
-			  //Creamos una variable auxiliar donde guardamos el valor del tamaño del buffer
+			  //Creamos una variable auxiliar donde guardamos el valor del tamano del buffer
 			  uint16_t proc_size=0;
 			  //Asignamos los valores correspondientes a cada variable
 			  proc_buffer = data_ready_packet.buffer;
@@ -604,13 +603,13 @@ void menuComandos (char* params){
 	    offset += snprintf(menu_display_buffer + offset, MENU_BUFFER_SIZE - offset,
 	                       "| %-15s| %-65s| %-24s|\r\n", "muestreo", "Configura el tiempo de muestreo (44.1kHz,48kHz, 96kHz, 128kHz)", "muestreo <valor>");
 	    offset += snprintf(menu_display_buffer + offset, MENU_BUFFER_SIZE - offset,
-	                       "| %-16s| %-66s| %-25s|\r\n", "tamañoFFT", "Configura el tamaño de la FFT (1024, 2048)", "tamanoFFT <tamaño>");
+	                       "| %-15s| %-65s| %-24s|\r\n", "tamanoFFT", "Configura el tamano de la FFT (1024, 2048)", "tamanoFFT <tamano>");
 	    offset += snprintf(menu_display_buffer + offset, MENU_BUFFER_SIZE - offset,
-	                       "| %-16s| %-66s| %-25s|\r\n", "señalADC", "Imprime la señal ADC muestreada", "señalADC");
+	                       "| %-15s| %-65s| %-24s|\r\n", "senalADC", "Imprime la senal ADC muestreada", "senalADC");
 	    offset += snprintf(menu_display_buffer + offset, MENU_BUFFER_SIZE - offset,
 	                       "| %-15s| %-65s| %-24s|\r\n", "equipo", "Imprime la configuracion del equipo", "equipo");
 	    offset += snprintf(menu_display_buffer + offset, MENU_BUFFER_SIZE - offset,
-	                       "| %-15s| %-66s| %-24s|\r\n", "espectroFFT", "Imprime el espectro FFT de la señal", "espectroFFT");
+	                       "| %-15s| %-65s| %-24s|\r\n", "espectroFFT", "Imprime el espectro FFT de la senal", "espectroFFT");
 	    offset += snprintf(menu_display_buffer + offset, MENU_BUFFER_SIZE - offset,
 	                       "| %-15s| %-66s| %-24s|\r\n", "principalFFT", "Imprime los valores más importantes de la FFT", "principalFFT");
 	    offset += snprintf(menu_display_buffer + offset, MENU_BUFFER_SIZE - offset,
@@ -631,7 +630,7 @@ void menuComandos (char* params){
 }
 //Funcion para analizar el comando recibido
 void analizarComando (uint8_t* buffer, uint16_t size){
-	//Nos preguntamos si el tamaño de la entrada es mayor al asignado inicialmente
+	//Nos preguntamos si el tamano de la entrada es mayor al asignado inicialmente
 	if (size >= UART_RX_BUFFER_SIZE){
 		//Nos aseguramos de que el ultimo caracter sea el nulo
 		buffer [UART_RX_BUFFER_SIZE-1]='\0';
@@ -716,7 +715,7 @@ void despacharComando (comandoID_t id, char* comando, char* params){
 	case comandoDesconocido:{
         //Creamos un char donde almacenamos el mensaje de comando incorrecto
         char incorrect_msg[] = "Comando desconocido \r\n";
-        HAL_UART_Transmit(&huart2, (uint8_t*)incorrect_msg, strlen(incorrect_msg), 1000);
+        HAL_UART_Transmit_DMA(&huart2, (uint8_t*)incorrect_msg, strlen(incorrect_msg));
 		break;
 	}
 	default:{
@@ -731,13 +730,13 @@ void periodoBlinky (char* params){
 	snprintf(debug_buffer, sizeof(debug_buffer), "DEBUG param: '%s'\r\n", params);
 	HAL_UART_Transmit(&huart2, (uint8_t*)debug_buffer, strlen(debug_buffer), HAL_MAX_DELAY);*/
 	//Creamos un buffer auxiliar
-	char tx_buffer[80]={0};
+	char tx_buffer[88];
 	//Preguntamos si los parametros estan nulos
 	if (params ==NULL){
 		//Guardamos en nuestro nuevo buffer el mensaje de que no hay periodo
-		sprintf (tx_buffer,"No se encontró periodo para el blinky, Escribe 'blinky <periodo en ms>'.\r\n");
+		sprintf( tx_buffer,"No se encontró periodo para el blinky, Escribe blinky <periodo en ms> \r\n");
 		//Transmitimos el mensaje
-		HAL_UART_Transmit(&huart2, (uint8_t *)tx_buffer, strlen(tx_buffer), 1000);
+		HAL_UART_Transmit_DMA(&huart2, (uint8_t *)tx_buffer, strlen(tx_buffer));
 		return;
 	}
 	//Convertimos el periodo dado por el usuario en un numero entero
@@ -746,7 +745,7 @@ void periodoBlinky (char* params){
 	if (periodo_ms <=0){
 		//Guardamos el mensaje de periodo invalido en el buffer auxiliar
 		sprintf (tx_buffer, "Periodo inválido. Debe ser mayor que 0\r\n");
-		HAL_UART_Transmit(&huart2,(uint8_t *) tx_buffer, strlen(tx_buffer), 1000);
+		HAL_UART_Transmit_DMA(&huart2,(uint8_t *) tx_buffer, strlen(tx_buffer));
 		return;
 	}
 	//Apagamos del TIMER2
@@ -768,7 +767,7 @@ void estadoRGB (char* params){
 		//Mensaje para decirle al usuario que la forma de su comando está incorrecta
 		sprintf(tx_buffer, "No se encontraron los parámetros. Escribe 'led <color>'");
 		//Imprimimos el mensaje
-		HAL_UART_Transmit(&huart2, (uint8_t*) tx_buffer, strlen(tx_buffer), 1000);
+		HAL_UART_Transmit_DMA(&huart2, (uint8_t*) tx_buffer, strlen(tx_buffer));
 		return;
 	}
 	//Creamos una variable auxiliar donde almacenamos el color que escribio el usuario
@@ -790,10 +789,8 @@ void estadoRGB (char* params){
 		//Si lo escrito no coincide con ningun color entonces imprimimos el mensaje de error
 		sprintf(tx_buffer, "Color no reconocido\r\n");
 		//Imprimimos el mensaje
-		HAL_UART_Transmit(&huart2, (uint8_t*) tx_buffer, strlen(tx_buffer), 1000);
+		HAL_UART_Transmit_DMA(&huart2, (uint8_t*) tx_buffer, strlen(tx_buffer));
 	}
-
-
 }
 //Funcion para configurar el tiempo de muestreo
 void configurarMuestreo(char* params){
@@ -815,16 +812,26 @@ void configurarMuestreo(char* params){
 	HAL_TIM_Base_Start_IT(&htim3);
 }
 
-//Funcion para configurar el tamaño de la FFT
+//Funcion para configurar el tamano de la FFT
 void configurarTamanoFFT (char* params){
+	//Definimos los puntosFFT mediante los parametros
 	puntosFFT = atoi(params);
 
 }
-//Funcion para imprimir la señal ADC
+//Funcion para imprimir la senal ADC
 void printADC(void){
-	 HAL_ADC_Start_DMA(&hadc1, (uint32_t *)adc_dma_buffer, ADC_BUFFER_SIZE);
+	//Preguntamos si el buffer del ADC esta listo
 	 if (adc_data_ready== 1){
-		 convertirADC();
+		 //Creamos una variable auxiliar con la cual guardamos lo que esta en el buffer en otro formato
+		 char tx_line_buffer[20];
+		 //Ciclo for para almcanear cada uno de los valores
+		 for (uint16_t i = 0; i < ADC_BUFFER_SIZE; i++) {
+			 //Asignamos los valores del adc_dma_buffer al tx_line_buffer en formato de entero sin signo
+			 sprintf(tx_line_buffer, "%u\n", adc_dma_buffer[i]);
+			 //Imprimios los valores del tx_line_buffer
+			 HAL_UART_Transmit_DMA(&huart2,(uint8_t*) tx_line_buffer, strlen(tx_line_buffer));
+		 }
+		 //Bajamos la bandera
 		 adc_data_ready =0;
 	 }
 	 else{
@@ -837,21 +844,44 @@ void printConf(void){
 }
 //Funcion para imprimir la FFT
 void printFFT(void){
+	//Creamos un factor de conversion
+    const float32_t conversion_factor = 1.0f / (float32_t)ADC_MAX_VALUE;
+    for (int i = 0; i < ADC_BUFFER_SIZE; i++) {
+        // Normalizamos los valores del adc_dma_buffer
+        dsp_input_buffer[i] = ((float32_t)adc_dma_buffer[i]) * conversion_factor;
+    }
+    //Variable donde vamos a almacenar los puntos de salida de la fft
+    float32_t fft_output_buffer[puntosFFT];
+    //Variable donde almacenamos la instancia con la cual realizaremos la FFT
+    arm_rfft_fast_instance_f32 rfft_instance;
+    //Variable donde almacenamos las magnitudes
+    float32_t fft_magnitudes[puntosFFT / 2];
+    arm_status status = arm_rfft_fast_init_f32(&rfft_instance,puntosFFT);
+	if (status != ARM_MATH_SUCCESS) {
+		// Handle error, perhaps an unsupported FFT size
+		return;
+	}
+	//Funcion para hallar la fft del input del ADC
+	arm_rfft_fast_f32(&rfft_instance, dsp_input_buffer,fft_output_buffer,0);
+	//Funcion para hallar las magnitudes de la fft
+	arm_cmplx_mag_f32(fft_output_buffer,fft_magnitudes, puntosFFT / 2);
+
+	//Creamos una variable auxiliar donde se van a almacenar los datos de la fft en forma entero sin signo
+	 char tx_line_buffer[20];
+	 //Ciclo for para guardar cada uno de los elementos del fft_output_buffer al tx_line_buffer
+	 for (uint16_t i = 0; i < puntosFFT; i++) {
+		 //Funcion para hacer las asignaciones correspondientes
+		 sprintf(tx_line_buffer, "%.4f\n", fft_magnitudes[i]);
+		 HAL_UART_Transmit_DMA(&huart2,(uint8_t*) tx_line_buffer, strlen(tx_line_buffer));
+	 }
 
 }
 //Funcion para imprimir los valores mas importantes de la FFT
 void printImportantes(void){
 
 }
-//Funcion para convertir el buffer del ADC a float32
-void convertirADC (void){
-	//Creamos un factor de conversion
-    const float32_t conversion_factor = 1.0f / (float32_t)ADC_MAX_VALUE;
-    for (int i = 0; i < ADC_BUFFER_SIZE; i++) {
-        // Option A: Normalize to [0.0, 1.0]
-        dsp_input_buffer[i] = ((float32_t)adc_dma_buffer[i]) * conversion_factor;
-    }
-}
+
+
 //Llamamos al callback para la transmision por DMA
 void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart){
 	//Nos aseguramos de que es el USART2 el que esta haciendo la interrupcion
@@ -866,7 +896,7 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size){
 		if (dma_buffer_activo==bufferA){
 			//Guardamos el buffer recibido en el buffer_a
 			data_ready_packet.buffer = rx_buffer_a;
-			//Guardamos el tamaño del buffer
+			//Guardamos el tamano del buffer
 			data_ready_packet.size = Size;
 			//Pasamos al buffer B
 			dma_buffer_activo= bufferB;
@@ -876,7 +906,7 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size){
 		else {
 			//Guardamos el buffer recibido en el buffer_a
 			data_ready_packet.buffer = rx_buffer_b;
-			//Guardamos el tamaño del buffer
+			//Guardamos el tamano del buffer
 			data_ready_packet.size = Size;
 			//Pasamos al buffer A
 			dma_buffer_activo= bufferA;
