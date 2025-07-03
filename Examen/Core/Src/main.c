@@ -88,6 +88,11 @@ uint16_t x_buffer[BUFFER_LEN];
 uint16_t y_buffer[BUFFER_LEN];
 uint16_t buffer_index = 0;
 
+//Variables donde guardamos el duty para cada led
+uint16_t dutyRojo =0;
+uint16_t dutyAzul =0;
+uint16_t dutyVerde =0;
+
 //Creamos la variable donde almacenaremos el menu inicial
 char menu_display_buffer[MENU_BUFFER_SIZE];
 /* USER CODE END PD */
@@ -244,6 +249,10 @@ int main(void)
   HAL_ADC_Start_DMA(&hadc1, (uint32_t*)adc_dma_buffer, 2);
   //Imprimimos el menu de comandos
   menuComandos(menu_display_buffer);
+  //Inicializamos el buffer activo
+  dma_buffer_activo= bufferA;
+  //Comenzamos la recepcion del comando
+  HAL_UARTEx_ReceiveToIdle_DMA(&huart2, rx_buffer_a, UART_RX_BUFFER_SIZE);
 
   /* USER CODE END 2 */
 
@@ -894,6 +903,8 @@ void maquinaEstados(uint16_t numeroLocal, uint8_t digito){
 		HAL_GPIO_TogglePin(GPIOH, GPIO_PIN_1);
 		//Volvemos al estado refrescar
 		fsm.estado = refrescar;
+        //Volvemos al estado de recibir mensaje
+        fsm.estado = mensaje;
 	}
 	case mensaje:{
 		//Nos seguramos de que el buffer tenga un tamano distinto de 0
@@ -976,6 +987,7 @@ void despacharComando (comandoID_t id, char* comando, char* params){
 	switch (id){
 	case cambiarDuty:{
 
+
 		break;
 	}
 	case ciclosMCU:{
@@ -984,12 +996,16 @@ void despacharComando (comandoID_t id, char* comando, char* params){
 	}
 	case help:{
 		menuComandos (NULL);
+		//Volvemos al estado refrescar
+		fsm.estado = refrescar;
 		break;
 	}
 	case comandoDesconocido:{
         //Creamos un char donde almacenamos el mensaje de comando incorrecto
         char incorrect_msg[30] = "Comando desconocido \r\n";
         HAL_UART_Transmit(&huart2, (uint8_t*)incorrect_msg, strlen(incorrect_msg), 1000);
+		//Volvemos al estado refrescar
+		fsm.estado = refrescar;
 		break;
 	}
 	default:{
