@@ -49,6 +49,8 @@ extern "C" {
 
 /* USER CODE END EM */
 
+void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim);
+
 /* Exported functions prototypes ---------------------------------------------*/
 void Error_Handler(void);
 
@@ -77,10 +79,6 @@ void Error_Handler(void);
 #define aumentarTasaRefresco_Pin GPIO_PIN_5
 #define aumentarTasaRefresco_GPIO_Port GPIOA
 #define aumentarTasaRefresco_EXTI_IRQn EXTI9_5_IRQn
-#define ledRojo_Pin GPIO_PIN_6
-#define ledRojo_GPIO_Port GPIOA
-#define ledVerde_Pin GPIO_PIN_7
-#define ledVerde_GPIO_Port GPIOA
 #define alimentacion1_Pin GPIO_PIN_5
 #define alimentacion1_GPIO_Port GPIOC
 #define segmento11_Pin GPIO_PIN_12
@@ -92,6 +90,10 @@ void Error_Handler(void);
 #define DT_Pin GPIO_PIN_9
 #define DT_GPIO_Port GPIOC
 #define DT_EXTI_IRQn EXTI9_5_IRQn
+#define ledVerde_Pin GPIO_PIN_8
+#define ledVerde_GPIO_Port GPIOA
+#define ledRojo_Pin GPIO_PIN_9
+#define ledRojo_GPIO_Port GPIOA
 #define alimentacion3_Pin GPIO_PIN_11
 #define alimentacion3_GPIO_Port GPIOA
 #define segmento10_Pin GPIO_PIN_12
@@ -115,8 +117,8 @@ void Error_Handler(void);
 #define SW_Pin GPIO_PIN_8
 #define SW_GPIO_Port GPIOB
 #define SW_EXTI_IRQn EXTI9_5_IRQn
-#define ledAzul_Pin GPIO_PIN_9
-#define ledAzul_GPIO_Port GPIOB
+#define ledAZul_Pin GPIO_PIN_9
+#define ledAZul_GPIO_Port GPIOB
 
 /* USER CODE BEGIN Private defines */
 
