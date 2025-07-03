@@ -54,6 +54,8 @@ typedef enum{
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+//Definimos el tamano del buffer donde almacenaremos los valores de la senal
+#define ADC_BUFFER_SIZE 2048
 //Inicializamos la variable a la cual vamos a gurdarle el estado que
 //tiene la maquina
 estadoActual fsm ={0};
@@ -74,6 +76,16 @@ uint8_t digito = 0;
 //Comenzamos con un periodo de 20ms
 uint16_t tasa_refresco = 20;
 
+
+//Variables para el ADC
+uint16_t adc_dma_buffer[2];     // DMA escribe aquí: [0] = X, [1] = Y
+
+#define BUFFER_LEN 2048
+uint16_t x_buffer[BUFFER_LEN];
+uint16_t y_buffer[BUFFER_LEN];
+uint16_t buffer_index = 0;
+
+//Buffer para almacenar los datos en y
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -91,6 +103,8 @@ TIM_HandleTypeDef htim3;
 TIM_HandleTypeDef htim4;
 
 UART_HandleTypeDef huart2;
+DMA_HandleTypeDef hdma_usart2_rx;
+DMA_HandleTypeDef hdma_usart2_tx;
 
 /* USER CODE BEGIN PV */
 
@@ -181,7 +195,8 @@ int main(void)
   HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
   HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_4);
   //Inicializamos las conversiones ADC
-  HAL_ADC_Start_DMA(&hadc1, (uint32_t *)adc_dma_buffer, ADC_BUFFER_SIZE);
+  HAL_ADC_Start_DMA(&hadc1, (uint32_t*)adc_dma_buffer, 2);
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -551,8 +566,15 @@ static void MX_DMA_Init(void)
 
   /* DMA controller clock enable */
   __HAL_RCC_DMA2_CLK_ENABLE();
+  __HAL_RCC_DMA1_CLK_ENABLE();
 
   /* DMA interrupt init */
+  /* DMA1_Stream5_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Stream5_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Stream5_IRQn);
+  /* DMA1_Stream6_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Stream6_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Stream6_IRQn);
   /* DMA2_Stream0_IRQn interrupt configuration */
   HAL_NVIC_SetPriority(DMA2_Stream0_IRQn, 0, 0);
   HAL_NVIC_EnableIRQ(DMA2_Stream0_IRQn);
@@ -1050,6 +1072,23 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 		//Cambiamos el estado a resetear
 		fsm.estado = resetear;
 	}
+}
+//Callback para el ADC
+void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
+{
+    if (hadc->Instance == ADC1)
+    {
+        if (buffer_index < BUFFER_LEN)
+        {
+            x_buffer[buffer_index] = adc_dma_buffer[0];  // X
+            y_buffer[buffer_index] = adc_dma_buffer[1];  // Y
+            buffer_index++;
+        }
+        else
+        {
+            buffer_index = 0;  // o detener almacenamiento si ya está lleno
+        }
+    }
 }
 
 /* USER CODE END 4 */
