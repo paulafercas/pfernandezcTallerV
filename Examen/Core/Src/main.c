@@ -34,6 +34,7 @@ typedef enum{
 	disminuir_tasa_refresco,
 	resetear,
 	Blinky,
+	mensaje,
 	IDLE
 }posiblesEstados;
 
@@ -54,8 +55,8 @@ typedef enum{
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-//Definimos el tamano del buffer donde almacenaremos los valores de la senal
-#define ADC_BUFFER_SIZE 2048
+//Definimos el tamano del buffer donde se va a almacenar el menu
+#define MENU_BUFFER_SIZE 1150
 //Inicializamos la variable a la cual vamos a gurdarle el estado que
 //tiene la maquina
 estadoActual fsm ={0};
@@ -81,11 +82,14 @@ uint16_t tasa_refresco = 20;
 uint16_t adc_dma_buffer[2];     // DMA escribe aquí: [0] = X, [1] = Y
 
 #define BUFFER_LEN 2048
+//Definimos la variable que nos indica el tamano de los buffer recibidos
+#define UART_RX_BUFFER_SIZE 64
 uint16_t x_buffer[BUFFER_LEN];
 uint16_t y_buffer[BUFFER_LEN];
 uint16_t buffer_index = 0;
 
-//Buffer para almacenar los datos en y
+//Creamos la variable donde almacenaremos el menu inicial
+char menu_display_buffer[MENU_BUFFER_SIZE];
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -107,6 +111,38 @@ DMA_HandleTypeDef hdma_usart2_rx;
 DMA_HandleTypeDef hdma_usart2_tx;
 
 /* USER CODE BEGIN PV */
+//Definimos una tabla con los comandos y funciones posibles
+const comando_t tablaComandos[]={
+		{"duty", 	cambiarDuty},
+		{"ciclosmcu", ciclosMCU},
+		{"help", help},
+};
+//Guardamos el numero de comandos en una variable
+const int numeroComandos = sizeof (tablaComandos)/sizeof (comando_t);
+
+//Creamos las variables donde se van a guardar los buffer utilizando
+//el metodo ping pong
+typedef enum{
+	bufferA,
+	bufferB
+}bufferActivo;
+
+//Creamos los buffer a y b
+uint8_t rx_buffer_a [UART_RX_BUFFER_SIZE]={0};
+uint8_t rx_buffer_b [UART_RX_BUFFER_SIZE]={0};
+
+//Creamos una estructura donde se almacena los datos correspondientes al
+//buffer activo
+typedef struct{
+	uint8_t* buffer;
+	uint16_t size;
+}DataPacket;
+
+//Inicializamos la estructura DataPacket con el buffer vacío y el tamano
+//igual a 0
+volatile DataPacket data_ready_packet ={.buffer= NULL, .size=0};
+//Inicializamos la variable del buffer activo con el buffer a
+volatile bufferActivo dma_buffer_activo = bufferA;
 
 /* USER CODE END PV */
 
@@ -141,6 +177,16 @@ void configurarTimers ();
 void configurarExti ();
 //Funcion para cambiar numero según el Encoder
 uint16_t cambioNumero (uint16_t numeroDisplay);
+
+//Funciones para USART
+//Funcion para imprimir el menu de opciones
+void menuComandos (char* params);
+//Funcion que analiza el comando recibido
+void analizarComando (uint8_t* buffer, uint16_t size);
+//Funcion que despacha el comando
+void despacharComando (comandoID_t id, char* comando, char* params);
+//Funcion para encontrar el comando que el usuario envió
+comandoID_t encontrarComandoid (const char* comando_str);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -196,6 +242,8 @@ int main(void)
   HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_4);
   //Inicializamos las conversiones ADC
   HAL_ADC_Start_DMA(&hadc1, (uint32_t*)adc_dma_buffer, 2);
+  //Imprimimos el menu de comandos
+  menuComandos(menu_display_buffer);
 
   /* USER CODE END 2 */
 
@@ -732,7 +780,36 @@ uint16_t separacion_parte (parteNumero parte, uint16_t numeroDisplay){
 	}
 	}//Fin del Switch case
 }
+void menuComandos (char* params){
+	//Limpiamos el buffer
+	memset (menu_display_buffer, 0, MENU_BUFFER_SIZE);
+	//Creamos el string para el menu
+	int offset =0;
+	// Header
+	    offset += snprintf(menu_display_buffer + offset, MENU_BUFFER_SIZE - offset,
+	                       "| %-15s| %-65s| %-24s|\r\n", "Comando", "Descripcion", "Formato");
 
+	    // Comandos con sus respectivas descripciones
+	    offset += snprintf(menu_display_buffer + offset, MENU_BUFFER_SIZE - offset,
+	                       "| %-15s| %-65s| %-24s|\r\n", "duty", "Controla el valor del Duty para el color deseado", "duty <color>");
+	    offset += snprintf(menu_display_buffer + offset, MENU_BUFFER_SIZE - offset,
+	                       "| %-15s| %-65s| %-24s|\r\n", "ciclosmcu", "Imprime el numero de ciclos del MCU", "ciclosmcu");
+	    offset += snprintf(menu_display_buffer + offset, MENU_BUFFER_SIZE - offset,
+	                       "| %-15s| %-65s| %-24s|\r\n", "help", "Imprime el menu de comandos", "help");
+
+
+	    // Transmitimos el menu a traves de la DMA
+	    //Nos aseguramos de que no estemos transmitiendo otro buffer a traves de la DMA
+	    if (huart2.gState == HAL_UART_STATE_READY) {
+	    	//Transmitimos el menu
+	        HAL_UART_Transmit_DMA(&huart2, (uint8_t*)menu_display_buffer, strlen(menu_display_buffer));
+	    } else {
+	        //Creamos un char donde almacenamos el mensaje de buffer ocupado
+	        char busy_msg[] = "UART ocupado. Intenta 'help'.\r\n";
+	        HAL_UART_Transmit_DMA(&huart2, (uint8_t*)busy_msg, strlen(busy_msg));
+	    }
+
+}
 /*
  * Creamos la funcion que le indica a la maquina de estados que debe hacer para cada caso
  */
@@ -818,6 +895,26 @@ void maquinaEstados(uint16_t numeroLocal, uint8_t digito){
 		//Volvemos al estado refrescar
 		fsm.estado = refrescar;
 	}
+	case mensaje:{
+		//Nos seguramos de que el buffer tenga un tamano distinto de 0
+		  if (data_ready_packet.size >0){
+			  //Creamos una variable auxiliar donde guardamos el valor del buffer
+			  uint8_t* proc_buffer = 0;
+			  //Creamos una variable auxiliar donde guardamos el valor del tamano del buffer
+			  uint16_t proc_size=0;
+			  //Asignamos los valores correspondientes a cada variable
+			  proc_buffer = data_ready_packet.buffer;
+			  proc_size = data_ready_packet.size;
+
+			  //Borramos lo guardado en las variables globales para que no se acumulen los datos recibidos
+			  data_ready_packet.buffer = NULL;
+			  data_ready_packet.size =0;
+
+			  //Procesamos los datos usando estas copias locales de forma segura
+			  analizarComando(proc_buffer, proc_size);
+		  }
+		break;
+	}
 	case IDLE:{
 		//En esta funcion no se hace absolutamente nada
 		break;
@@ -827,6 +924,79 @@ void maquinaEstados(uint16_t numeroLocal, uint8_t digito){
 		break;
 	}
 	}//Fin del Switch case
+}
+
+//Funcion para analizar el comando recibido
+void analizarComando (uint8_t* buffer, uint16_t size){
+	//Nos preguntamos si el tamano de la entrada es mayor al asignado inicialmente
+	if (size >= UART_RX_BUFFER_SIZE){
+		//Nos aseguramos de que el ultimo caracter sea el nulo
+		buffer [UART_RX_BUFFER_SIZE-1]='\0';
+	} else{
+		//Nos aseguramos de que el ultimo caracter sea nulo
+		buffer[size]='\0';
+	}
+	//Usamos strok para extraer el comando y los parametros
+	//obtenemos el comando
+	char* comando_str = strtok ((char*)buffer, " ");
+	//Obtenemos el resto de strings como parametros
+	char* params = strtok  (NULL, " ");
+	//Preguntamos si tenemos parametros para aquellas entradas sin parametros
+	if (params == NULL){
+		//Limpiamos el comando_str en caso de que tenga \r y \n
+		comando_str[strcspn(comando_str, "\r\n")] = 0;
+	}
+
+	//Preguntamos si el comando esta vacio no hacemos nada
+	if (comando_str==NULL){
+		return;
+	}
+
+	//Debemos identificar el comando que estamos utilizando
+	comandoID_t id =encontrarComandoid (comando_str);
+	//Enviamos el comando a la maquina de estados
+	despacharComando(id, comando_str, params);
+}
+
+//Funcion para encontrar el comando recibido
+comandoID_t encontrarComandoid (const char* comando_str){
+	for (int i =0; i< numeroComandos; i++){
+		//Utilizamos la funcion strcmp que compara bit a bit el comando
+		//ingresado con cada uno de los disponibles en la tabla
+		if (strcmp (comando_str, tablaComandos[i].comando_str)==0){
+			return tablaComandos[i].comando_id;
+		}
+	}
+	//Si no coincide con ninguno entonces se retorna el estado de
+	//comandoDesconocido
+	return comandoDesconocido;
+}
+//Funcion para enviar el comando
+void despacharComando (comandoID_t id, char* comando, char* params){
+	switch (id){
+	case cambiarDuty:{
+
+		break;
+	}
+	case ciclosMCU:{
+
+		break;
+	}
+	case help:{
+		menuComandos (NULL);
+		break;
+	}
+	case comandoDesconocido:{
+        //Creamos un char donde almacenamos el mensaje de comando incorrecto
+        char incorrect_msg[30] = "Comando desconocido \r\n";
+        HAL_UART_Transmit(&huart2, (uint8_t*)incorrect_msg, strlen(incorrect_msg), 1000);
+		break;
+	}
+	default:{
+		__NOP();
+		break;
+	}
+	}
 }
 /*
  * Funcion que determina qué digito tenemos encendido
@@ -1071,6 +1241,34 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 	else if (GPIO_Pin == GPIO_PIN_8){
 		//Cambiamos el estado a resetear
 		fsm.estado = resetear;
+	}
+}
+//Llamamos al callback para la recepcion del comando
+void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size){
+	//Nos aseguramos de que estamos usando el USART2
+	if (huart->Instance ==USART2){
+		//Preguntamos si estamos en el bufferA
+		if (dma_buffer_activo==bufferA){
+			//Guardamos el buffer recibido en el buffer_a
+			data_ready_packet.buffer = rx_buffer_a;
+			//Guardamos el tamano del buffer
+			data_ready_packet.size = Size;
+			//Pasamos al buffer B
+			dma_buffer_activo= bufferB;
+			HAL_UARTEx_ReceiveToIdle_DMA(&huart2, rx_buffer_b, UART_RX_BUFFER_SIZE);
+		}
+		//Si el buffer se encuentra en el bufferb
+		else {
+			//Guardamos el buffer recibido en el buffer_a
+			data_ready_packet.buffer = rx_buffer_b;
+			//Guardamos el tamano del buffer
+			data_ready_packet.size = Size;
+			//Pasamos al buffer A
+			dma_buffer_activo= bufferA;
+			HAL_UARTEx_ReceiveToIdle_DMA(&huart2, rx_buffer_a, UART_RX_BUFFER_SIZE);
+		}
+		//Cambiamos de estado a recibir mensaje
+		fsm.estado = mensaje;
 	}
 }
 //Callback para el ADC

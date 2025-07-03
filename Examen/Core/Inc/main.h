@@ -31,12 +31,28 @@ extern "C" {
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include <stdio.h>
+#include <stdint.h>
+#include <string.h>
+#include <stdlib.h>
+#include <stdbool.h>
 /* USER CODE END Includes */
 
 /* Exported types ------------------------------------------------------------*/
 /* USER CODE BEGIN ET */
+typedef enum{
+	cambiarDuty, //Cambia el valor del Duty
+	ciclosMCU, //Muestra los ciclos utilizados por el MCU para imrpimir el mensaje
+	help,			// Imprimir el menu de configuraciones
+	comandoDesconocido //El comando que se ingresó no es válido
+}comandoID_t;
 
+//Definimos la estructura donde se hace llamada a los posibles estados de la
+//enumeracion
+typedef struct{
+	const char* comando_str;
+	comandoID_t comando_id;
+}comando_t;
 /* USER CODE END ET */
 
 /* Exported constants --------------------------------------------------------*/
