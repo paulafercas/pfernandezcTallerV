@@ -800,7 +800,7 @@ void menuComandos (char* params){
 
 	    // Comandos con sus respectivas descripciones
 	    offset += snprintf(menu_display_buffer + offset, MENU_BUFFER_SIZE - offset,
-	                       "| %-15s| %-65s| %-24s|\r\n", "duty", "Controla el valor del Duty para el color deseado", "duty <color>");
+	                       "| %-15s| %-65s| %-24s|\r\n", "duty", "Controla el valor del Duty para el color deseado", "duty <color> <valor>");
 	    offset += snprintf(menu_display_buffer + offset, MENU_BUFFER_SIZE - offset,
 	                       "| %-15s| %-65s| %-24s|\r\n", "ciclosmcu", "Imprime el numero de ciclos del MCU", "ciclosmcu");
 	    offset += snprintf(menu_display_buffer + offset, MENU_BUFFER_SIZE - offset,
@@ -986,7 +986,36 @@ comandoID_t encontrarComandoid (const char* comando_str){
 void despacharComando (comandoID_t id, char* comando, char* params){
 	switch (id){
 	case cambiarDuty:{
-
+		//Creamos una variable para guardar el mensaje que imprime las confirmaciones
+		char msg[64];
+		//Guardamos el valor del duty
+		char *duty_str = strtok(NULL, " ");
+		//Limpiamos el valor del duty en caso de que tenga \r y \n
+		duty_str[strcspn(duty_str, "\r\n")] = 0;
+		//Convertimos el valor en entero
+		int duty = atoi(duty_str);
+		//Preguntamos si el color es igual a rojo
+		if (strcmp(params, "rojo") == 0) {
+		    __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_2, duty);
+		    //Imprimimos el mensaje que confirma que ha cambiado el duty
+		    sprintf(msg, "El duty del rojo es %d\r\n", duty);
+		    HAL_UART_Transmit(&huart2, (uint8_t*)msg, strlen(msg), HAL_MAX_DELAY);
+		//Preguntamos si el color es igual a azul
+		} else if (strcmp(params, "azul") == 0) {
+		    __HAL_TIM_SET_COMPARE(&htim4, TIM_CHANNEL_4, duty);
+		    //Imprimimos el mensaje que confirma que ha cambiado el duty
+		    sprintf(msg, "El duty del azul es %d\r\n", duty);
+		    HAL_UART_Transmit(&huart2, (uint8_t*)msg, strlen(msg), HAL_MAX_DELAY);
+		//Preguntamos si el color es igual a verde
+		} else if (strcmp(params, "verde") == 0) {
+		    __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, duty);
+		    //Imprimimos el mensaje que confirma que ha cambiado el duty
+		    sprintf(msg, "El duty del verde es %d\r\n", duty);
+		    HAL_UART_Transmit(&huart2, (uint8_t*)msg, strlen(msg), HAL_MAX_DELAY);
+		} else {
+		    char msg[] = "Color desconocido\r\n";
+		    HAL_UART_Transmit(&huart2, (uint8_t*)msg, strlen(msg), HAL_MAX_DELAY);
+		}
 
 		break;
 	}
