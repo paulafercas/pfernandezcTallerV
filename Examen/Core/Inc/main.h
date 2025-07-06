@@ -42,7 +42,8 @@ extern "C" {
 /* USER CODE BEGIN ET */
 typedef enum{
 	cambiarDuty, //Cambia el valor del Duty
-	ciclosMCU, //Muestra los ciclos utilizados por el MCU para imrpimir el mensaje
+	ciclosMCUD, //Muestra los ciclos utilizados por el MCU para mostrar el digito
+	ciclosMCUM, //Muestra los ciclos utilizados por el MCU para mostrar el mensaje
 	help,			// Imprimir el menu de configuraciones
 	comandoDesconocido //El comando que se ingresó no es válido
 }comandoID_t;

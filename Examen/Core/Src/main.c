@@ -44,7 +44,7 @@ typedef struct
 }estadoActual;
 
 
-//Enumeramos las posibles partes que tenemos en numeroDisplay
+//Enumeramos las posibles partes que tenemos en el numero que aparece en el Display
 typedef enum{
 	unidad1 =0,
 	decena1,
@@ -61,8 +61,14 @@ typedef enum{
 //tiene la maquina
 estadoActual fsm ={0};
 
-//Creamos la variable donde vamos a guardar el numero que se va a mostrar en el display
-uint16_t numeroDisplay =0;
+//Creamos la variable donde vamos a guardar el numero en x sin escalar
+uint16_t numerox1=0;
+//Creamos la variable donde vamos a guardar el numero en x escalado
+uint16_t numerox=0;
+//Creamos la variable donde vamos a guardar el numero en y sin escalar
+uint16_t numeroy1=0;
+//Creamos la variable donde vamos a guardar el numero en y escalado
+uint16_t numeroy =0;
 
 //Inicializamos las variables que van a permitir separar el numeroDisplay en 4 partes
 uint8_t unidad = 0;
@@ -88,11 +94,6 @@ uint16_t x_buffer[BUFFER_LEN];
 uint16_t y_buffer[BUFFER_LEN];
 uint16_t buffer_index = 0;
 
-//Variables donde guardamos el duty para cada led
-uint16_t dutyRojo =0;
-uint16_t dutyAzul =0;
-uint16_t dutyVerde =0;
-
 //Creamos la variable donde almacenaremos el menu inicial
 char menu_display_buffer[MENU_BUFFER_SIZE];
 /* USER CODE END PD */
@@ -110,6 +111,7 @@ TIM_HandleTypeDef htim1;
 TIM_HandleTypeDef htim2;
 TIM_HandleTypeDef htim3;
 TIM_HandleTypeDef htim4;
+TIM_HandleTypeDef htim5;
 
 UART_HandleTypeDef huart2;
 DMA_HandleTypeDef hdma_usart2_rx;
@@ -119,7 +121,8 @@ DMA_HandleTypeDef hdma_usart2_tx;
 //Definimos una tabla con los comandos y funciones posibles
 const comando_t tablaComandos[]={
 		{"duty", 	cambiarDuty},
-		{"ciclosmcu", ciclosMCU},
+		{"ciclosDigito", ciclosMCUD},
+		{"ciclosMensaje", ciclosMCUM},
 		{"help", help},
 };
 //Guardamos el numero de comandos en una variable
@@ -161,14 +164,15 @@ static void MX_TIM3_Init(void);
 static void MX_ADC1_Init(void);
 static void MX_TIM1_Init(void);
 static void MX_TIM4_Init(void);
+static void MX_TIM5_Init(void);
 /* USER CODE BEGIN PFP */
 /*
  * Declaramos la funciones que aparecerán próximamente
  */
 //Funcion que define qué se va a hacer según el estado en el que se encuentre la maquina
-void maquinaEstados(uint16_t numeroLocal,uint8_t digito);
+void maquinaEstados(uint8_t digito);
 //Funcion que separa el numeroDisplay en 4 partes (unidad, decena, centena, milUnidad)
-uint16_t separacion_parte (parteNumero parte, uint16_t numeroDisplay);
+uint16_t separacion_parte (parteNumero parte, uint16_t numeroLocal);
 //Funcion que nos permite encender el numero que queremos en el digito que queremos
 void digito_encendido(uint8_t digito, uint8_t unidad,uint8_t decena, uint8_t centena, uint8_t milUnidad);
 //Funcion que se encuentra dentro de "digito_encendido" para definir que numero
@@ -181,7 +185,7 @@ void configurarTimers ();
 //Funcion que configura los pines para el EXTI
 void configurarExti ();
 //Funcion para cambiar numero según el Encoder
-uint16_t cambioNumero (uint16_t numeroDisplay);
+uint16_t cambioNumero (uint16_t numeroLocal);
 
 //Funciones para USART
 //Funcion para imprimir el menu de opciones
@@ -234,6 +238,7 @@ int main(void)
   MX_ADC1_Init();
   MX_TIM1_Init();
   MX_TIM4_Init();
+  MX_TIM5_Init();
   /* USER CODE BEGIN 2 */
   //Activamos los timers y sus interrupciones
   HAL_TIM_Base_Start_IT(&htim2);
@@ -241,10 +246,12 @@ int main(void)
   //Inicializamos el Timer1 y 4 (sin interrupciones)
   HAL_TIM_Base_Start(&htim1);
   HAL_TIM_Base_Start(&htim4);
+  HAL_TIM_Base_Start(&htim5);
   //Inicializamos los PWM
   HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
   HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
   HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_4);
+  HAL_TIM_PWM_Start(&htim5, TIM_CHANNEL_2);
   //Inicializamos las conversiones ADC
   HAL_ADC_Start_DMA(&hadc1, (uint32_t*)adc_dma_buffer, 2);
   //Imprimimos el menu de comandos
@@ -261,7 +268,7 @@ int main(void)
   while (1)
   {
 	  if(fsm.estado != IDLE){
-		  maquinaEstados(numeroDisplay,digito);
+		  maquinaEstados(digito);
 	  }
     /* USER CODE END WHILE */
 
@@ -336,10 +343,10 @@ static void MX_ADC1_Init(void)
   hadc1.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV2;
   hadc1.Init.Resolution = ADC_RESOLUTION_12B;
   hadc1.Init.ScanConvMode = ENABLE;
-  hadc1.Init.ContinuousConvMode = ENABLE;
+  hadc1.Init.ContinuousConvMode = DISABLE;
   hadc1.Init.DiscontinuousConvMode = DISABLE;
-  hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
-  hadc1.Init.ExternalTrigConv = ADC_SOFTWARE_START;
+  hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_RISING;
+  hadc1.Init.ExternalTrigConv = ADC_EXTERNALTRIGCONV_T5_CC2;
   hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
   hadc1.Init.NbrOfConversion = 2;
   hadc1.Init.DMAContinuousRequests = ENABLE;
@@ -583,6 +590,65 @@ static void MX_TIM4_Init(void)
 }
 
 /**
+  * @brief TIM5 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM5_Init(void)
+{
+
+  /* USER CODE BEGIN TIM5_Init 0 */
+
+  /* USER CODE END TIM5_Init 0 */
+
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+  TIM_OC_InitTypeDef sConfigOC = {0};
+
+  /* USER CODE BEGIN TIM5_Init 1 */
+
+  /* USER CODE END TIM5_Init 1 */
+  htim5.Instance = TIM5;
+  htim5.Init.Prescaler = 16000-1;
+  htim5.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim5.Init.Period = 100-1;
+  htim5.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim5.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim5) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim5, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_TIM_OC_Init(&htim5) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_OC2REF;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim5, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sConfigOC.OCMode = TIM_OCMODE_TOGGLE;
+  sConfigOC.Pulse = 0;
+  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+  if (HAL_TIM_OC_ConfigChannel(&htim5, &sConfigOC, TIM_CHANNEL_2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM5_Init 2 */
+
+  /* USER CODE END TIM5_Init 2 */
+  HAL_TIM_MspPostInit(&htim5);
+
+}
+
+/**
   * @brief USART2 Initialization Function
   * @param None
   * @retval None
@@ -752,36 +818,34 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-uint16_t separacion_parte (parteNumero parte, uint16_t numeroDisplay){
+uint16_t separacion_parte (parteNumero parte, uint16_t numeroLocal){
 	switch (parte){
 	case unidad1:{
 		uint8_t unidad = 0;
-		unidad = numeroDisplay%10;
+		unidad = numeroLocal%10;
 		return unidad;
 		break;
 	}
 	case decena1: {
 		uint8_t unidad = 0;
 		uint8_t decena = 0;
-		unidad = numeroDisplay%10;
-		decena = ((numeroDisplay-unidad)/10)%10;
+		unidad = numeroLocal%10;
+		decena = ((numeroLocal-unidad)/10)%10;
 		return decena;
 		break;
 	}
 	case centena1:{
-		uint8_t residuoCentena = 0;
-		uint8_t centena = 0;
-		residuoCentena = numeroDisplay%100;
-		centena = ((numeroDisplay - residuoCentena)/100)%10;
-		return centena;
+		uint8_t unidad = 0;
+		unidad = numeroLocal%10;
+		return unidad;
 		break;
 	}
 	case milUnidad1: {
-		uint8_t residuoMil = 0;
-		residuoMil = numeroDisplay%1000;
-		uint8_t milUnidad = 0;
-		milUnidad = (numeroDisplay-residuoMil)/1000;
-		return milUnidad;
+		uint8_t unidad = 0;
+		uint8_t decena = 0;
+		unidad = numeroLocal%10;
+		decena = ((numeroLocal-unidad)/10)%10;
+		return decena;
 		break;
 	}
 	default:{
@@ -802,7 +866,9 @@ void menuComandos (char* params){
 	    offset += snprintf(menu_display_buffer + offset, MENU_BUFFER_SIZE - offset,
 	                       "| %-15s| %-65s| %-24s|\r\n", "duty", "Controla el valor del Duty para el color deseado", "duty <color> <valor>");
 	    offset += snprintf(menu_display_buffer + offset, MENU_BUFFER_SIZE - offset,
-	                       "| %-15s| %-65s| %-24s|\r\n", "ciclosmcu", "Imprime el numero de ciclos del MCU", "ciclosmcu");
+	                       "| %-15s| %-65s| %-24s|\r\n", "ciclosDigito", "Imprime el numero de ciclos del MCU", "ciclosDigito");
+	    offset += snprintf(menu_display_buffer + offset, MENU_BUFFER_SIZE - offset,
+	                       "| %-15s| %-65s| %-24s|\r\n", "ciclosMensaje", "Imprime el numero de ciclos del MCU", "ciclosDigito");
 	    offset += snprintf(menu_display_buffer + offset, MENU_BUFFER_SIZE - offset,
 	                       "| %-15s| %-65s| %-24s|\r\n", "help", "Imprime el menu de comandos", "help");
 
@@ -822,7 +888,7 @@ void menuComandos (char* params){
 /*
  * Creamos la funcion que le indica a la maquina de estados que debe hacer para cada caso
  */
-void maquinaEstados(uint16_t numeroLocal, uint8_t digito){
+void maquinaEstados(uint8_t digito){
 	switch (fsm.estado){
 	case refrescar:{
 		//Apagamos todos los digitos
@@ -831,11 +897,16 @@ void maquinaEstados(uint16_t numeroLocal, uint8_t digito){
 		HAL_GPIO_WritePin(alimentacion2_GPIO_Port, alimentacion2_Pin, GPIO_PIN_SET);
 		HAL_GPIO_WritePin(alimentacion3_GPIO_Port, alimentacion3_Pin, GPIO_PIN_SET);
 
+		//Escalamos el valor de numerox1
+		numerox = (numerox1 * 99) / 4095;
+		//Escalamos el valor de numeroy1
+		numeroy = (numeroy1 *99)/4095;
+
 		// Vamos a dividir el numeroDisplay en unidades, decenas, centenas y unidades de mil.
-		unidad =  separacion_parte (unidad1, numeroDisplay);
-		decena = separacion_parte (decena1, numeroDisplay);
-		centena = separacion_parte (centena1, numeroDisplay);
-		milUnidad = separacion_parte (milUnidad1, numeroDisplay);
+		unidad =  separacion_parte (unidad1, numerox);
+		decena = separacion_parte (decena1, numerox);
+		centena = separacion_parte (centena1, numeroy);
+		milUnidad = separacion_parte (milUnidad1, numeroy);
 		//Llamamos a la funcion que nos indica qué pines deben estar encendidos en el digito
 		//que deseo mostrar
 		digito_encendido(digito,unidad, decena, centena, milUnidad);
@@ -844,7 +915,7 @@ void maquinaEstados(uint16_t numeroLocal, uint8_t digito){
 	case cambiar_numero: {
 		//Llamamos a la funcion encargada de cambiar el numero
 		//debido a la interrupcion
-		numeroDisplay = cambioNumero (numeroLocal);
+		//numeroDisplay = cambioNumero (numeroLocal);
 		//Volvemos al estado refrescar
 		fsm.estado = refrescar;
 		break;
@@ -894,7 +965,8 @@ void maquinaEstados(uint16_t numeroLocal, uint8_t digito){
 	}
 	case resetear:{
 		//Con el SWITCH vamos a reiniciar nuestro contador
-		numeroDisplay = 0;
+		numerox = 0;
+		numeroy =0;
 		//Volvemos al estado refrescar
 		fsm.estado = refrescar;
 	}
@@ -903,8 +975,6 @@ void maquinaEstados(uint16_t numeroLocal, uint8_t digito){
 		HAL_GPIO_TogglePin(GPIOH, GPIO_PIN_1);
 		//Volvemos al estado refrescar
 		fsm.estado = refrescar;
-        //Volvemos al estado de recibir mensaje
-        fsm.estado = mensaje;
 	}
 	case mensaje:{
 		//Nos seguramos de que el buffer tenga un tamano distinto de 0
@@ -1019,8 +1089,11 @@ void despacharComando (comandoID_t id, char* comando, char* params){
 
 		break;
 	}
-	case ciclosMCU:{
+	case ciclosMCUD:{
 
+		break;
+	}
+	case ciclosMCUM:{
 		break;
 	}
 	case help:{
@@ -1323,8 +1396,8 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
     {
         if (buffer_index < BUFFER_LEN)
         {
-            x_buffer[buffer_index] = adc_dma_buffer[0];  // X
-            y_buffer[buffer_index] = adc_dma_buffer[1];  // Y
+           numerox1 = adc_dma_buffer[0];  // X
+           numeroy1 = adc_dma_buffer[1];  // Y
             buffer_index++;
         }
         else
@@ -1332,6 +1405,7 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
             buffer_index = 0;  // o detener almacenamiento si ya está lleno
         }
     }
+    fsm.estado = refrescar;
 }
 
 /* USER CODE END 4 */
