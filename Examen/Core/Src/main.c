@@ -76,7 +76,8 @@ uint8_t decena = 0;
 uint8_t centena = 0;
 uint8_t milUnidad = 0;
 
-
+//Bandera que nos va a indicar que duty de que color queremos modificar
+uint8_t numeroColor =0;
 //Inicializamos la variable donde guardamos que digito queremos encender (0,1,2,3)
 uint8_t digito = 0;
 //Inicializamos la variable que va a modificar la tasa de refresco
@@ -151,7 +152,8 @@ typedef struct{
 volatile DataPacket data_ready_packet ={.buffer= NULL, .size=0};
 //Inicializamos la variable del buffer activo con el buffer a
 volatile bufferActivo dma_buffer_activo = bufferA;
-
+//Inicializamos la variable de ciclosMCU para el digito
+uint32_t ciclos =0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -260,6 +262,12 @@ int main(void)
   dma_buffer_activo= bufferA;
   //Comenzamos la recepcion del comando
   HAL_UARTEx_ReceiveToIdle_DMA(&huart2, rx_buffer_a, UART_RX_BUFFER_SIZE);
+
+  // Hacemos la inicializacion correspondiente al registro para contar ciclos de MCU
+  CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;     // Habilitar el sistema de trazado
+  DWT->CYCCNT = 0;                                    // Reiniciar contador
+  DWT->CTRL |= DWT_CTRL_CYCCNTENA_Msk;                // Habilitar contador
+
 
   /* USER CODE END 2 */
 
@@ -868,7 +876,7 @@ void menuComandos (char* params){
 	    offset += snprintf(menu_display_buffer + offset, MENU_BUFFER_SIZE - offset,
 	                       "| %-15s| %-65s| %-24s|\r\n", "ciclosDigito", "Imprime el numero de ciclos del MCU", "ciclosDigito");
 	    offset += snprintf(menu_display_buffer + offset, MENU_BUFFER_SIZE - offset,
-	                       "| %-15s| %-65s| %-24s|\r\n", "ciclosMensaje", "Imprime el numero de ciclos del MCU", "ciclosDigito");
+	                       "| %-15s| %-65s| %-24s|\r\n", "ciclosMensaje", "Imprime el numero de ciclos del MCU", "ciclosMensaje");
 	    offset += snprintf(menu_display_buffer + offset, MENU_BUFFER_SIZE - offset,
 	                       "| %-15s| %-65s| %-24s|\r\n", "help", "Imprime el menu de comandos", "help");
 
@@ -909,13 +917,31 @@ void maquinaEstados(uint8_t digito){
 		milUnidad = separacion_parte (milUnidad1, numeroy);
 		//Llamamos a la funcion que nos indica qué pines deben estar encendidos en el digito
 		//que deseo mostrar
+		uint32_t start = DWT->CYCCNT;
 		digito_encendido(digito,unidad, decena, centena, milUnidad);
+		uint32_t end = DWT->CYCCNT;
+		ciclos = end - start;
 		break;
 	}
 	case cambiar_numero: {
-		//Llamamos a la funcion encargada de cambiar el numero
-		//debido a la interrupcion
-		//numeroDisplay = cambioNumero (numeroLocal);
+
+		//Creamos una variable para guardar el valor del duty
+		uint16_t duty = 1;
+		//Llamamos la funcion encargada de cambiar el valor del duty
+		duty = cambioNumero(duty);
+		//Preguntamos si numeroColor es igual a 0
+		if (numeroColor ==0) {
+			//Cambiamos el valor del duty
+		    __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_2, duty);
+		//Preguntamos si el color es igual a azul
+		} else if (numeroColor ==1) {
+			//Cambiamos el valor del duty azul
+		    __HAL_TIM_SET_COMPARE(&htim4, TIM_CHANNEL_4, duty);
+		//Preguntamos si el color es igual a verde
+		} else if (numeroColor==2) {
+			//Cambiamos el duty del verde
+		    __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, duty);
+		}
 		//Volvemos al estado refrescar
 		fsm.estado = refrescar;
 		break;
@@ -964,9 +990,12 @@ void maquinaEstados(uint8_t digito){
 		break;
 	}
 	case resetear:{
-		//Con el SWITCH vamos a reiniciar nuestro contador
-		numerox = 0;
-		numeroy =0;
+		//Con el SWITCH vamos a cambiar el color al que le vamos a modificar el duty
+		numeroColor ++;
+		//Si numeroColor es igual a 3 entonces vuelve a ser 0
+		if (numeroColor ==3){
+			numeroColor = 0;
+		}
 		//Volvemos al estado refrescar
 		fsm.estado = refrescar;
 	}
@@ -1090,10 +1119,31 @@ void despacharComando (comandoID_t id, char* comando, char* params){
 		break;
 	}
 	case ciclosMCUD:{
-
+		//Creamos el arreglo donde vamos a guardar el numero de ciclos
+		char msg[64];
+		//Guardamos el numero de ciclos en el arreglo
+		sprintf(msg, "Ciclos usados: %lu\r\n", ciclos);
+		//Imprimimos el mensaje
+		HAL_UART_Transmit(&huart2, (uint8_t*)msg, strlen(msg), HAL_MAX_DELAY);
 		break;
 	}
 	case ciclosMCUM:{
+		//Creamos el arreglo donde almacenamos el mensaje
+		char mensaje[] = "Hola mundo!\r\n";
+		//Comenzamos el contador
+		uint32_t start = DWT->CYCCNT;
+		//Transmitimos el mensaje con la DMA
+		HAL_UART_Transmit(&huart2,(uint8_t*)mensaje, strlen(mensaje),HAL_MAX_DELAY);
+		//Finalizamos el contador
+		uint32_t end = DWT->CYCCNT;
+		//Comparamos ciclo final menos ciclo inicial
+		uint32_t ciclos2 = end - start;
+		//Creamos un arreglo para el mensaje a imprimir
+		char msg[64];
+		//Guardamos el mensaje en el arreglo
+		sprintf(msg, "Ciclos usados: %lu\r\n", ciclos2);
+		//Imprimimos el mensaje
+		HAL_UART_Transmit(&huart2, (uint8_t*)msg, strlen(msg), HAL_MAX_DELAY);
 		break;
 	}
 	case help:{
@@ -1286,18 +1336,18 @@ uint16_t cambioNumero (uint16_t numeroLocal){
 	valor_DT = HAL_GPIO_ReadPin(CLK_GPIO_Port, CLK_Pin);
 	//Comparamos las posibles opciones
 	switch (valor_DT){
-	//Cuando el pin DT está en o
+	//Cuando el pin DT está en 0
 	case 0: {
 		//Nos aseguramos de que el numeroDisplay no vaya a ser mayor ue 4095
-		if (numeroLocal>=4095){
-			//Devolvemos el valor de numeroDisplay a 0
-			numeroLocal=0;
+		if (numeroLocal>=1000){
+			//Devolvemos el valor de numeroDisplay a 1
+			numeroLocal=1;
 			//Retornamos el valor numeroLocal
 			return numeroLocal;
 		}
 		else {
 			//Le sumamos una unidad a la variable numeroDisplay
-			numeroLocal ++;
+			numeroLocal +=10;
 			//Retornamos el valor numeroLocal
 			return numeroLocal;
 		}
@@ -1306,15 +1356,15 @@ uint16_t cambioNumero (uint16_t numeroLocal){
 
 	case 1: {
 		//Nos aseguramos de que el numeroDisplay no vaya a ser menor que cero
-		if (numeroLocal==0){
+		if (numeroLocal<=1){
 			//Lo devolvemos a 4095
-			numeroLocal =4095;
+			numeroLocal =1000;
 			//Retornamos el valor numeroLocal
 			return numeroLocal;
 		}
 		else {
 			//Le restamos a numeroDisplay una unidad
-			numeroLocal --;
+			numeroLocal -=10;
 			//Retornamos el valor numeroLocal
 			return numeroLocal;
 		}
