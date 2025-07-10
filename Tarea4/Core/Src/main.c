@@ -63,6 +63,9 @@ int16_t aceleracionx =0;
 int16_t aceleraciony =0;
 int16_t aceleracionz =0;
 
+//Variable para almacenara configuraciones para las interrupciones
+uint8_t config =0;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -124,6 +127,11 @@ int main(void)
 
   //Inicializamos el acelerometro
   ADXL345_Init();
+
+  //Iniciamos lectura con la DMA
+  // Leer 6 bytes desde el registro DATAX0 (x, y, z)
+  HAL_I2C_Mem_Read_DMA(&hi2c1, ADXL345_ADDR, REG_DATAX0, 1, adxl_data, 6);
+
 
   //Inicializamos el estado del acelerometro
   fsm.estado = IDLE;
@@ -340,6 +348,16 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(blinky_GPIO_Port, &GPIO_InitStruct);
 
+  /*Configure GPIO pin : actualizacionDato_Pin */
+  GPIO_InitStruct.Pin = actualizacionDato_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(actualizacionDato_GPIO_Port, &GPIO_InitStruct);
+
+  /* EXTI interrupt init*/
+  HAL_NVIC_SetPriority(EXTI2_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI2_IRQn);
+
 /* USER CODE BEGIN MX_GPIO_Init_2 */
 /* USER CODE END MX_GPIO_Init_2 */
 }
@@ -348,6 +366,20 @@ static void MX_GPIO_Init(void)
 //Funcion de la maquina de estados
 void maquinaEstados(void){
 	switch (fsm.estado){
+	case leerDato:{
+        HAL_I2C_Mem_Read_DMA(&hi2c1, ADXL345_ADDR, 0x32, 1, adxl_data, 6);
+		break;
+	}
+	case guardarDato:{
+        aceleracionx = (int16_t)((adxl_data[1] << 8) | adxl_data[0]);
+        aceleraciony = (int16_t)((adxl_data[3] << 8) | adxl_data[2]);
+        aceleracionz = (int16_t)((adxl_data[5] << 8) | adxl_data[4]);
+        fsm.estado = mostrarPantalla;
+		break;
+	}
+	case mostrarPantalla:{
+		break;
+	}
 	case Blinky:{
 		HAL_GPIO_TogglePin(blinky_GPIO_Port, blinky_Pin);
 		fsm.estado = IDLE;
@@ -374,6 +406,13 @@ void ADXL345_Init(void) {
     data = 0x01;
     //Escribimos ese valor en el registro 0x31 del ADXL345
     HAL_I2C_Mem_Write_DMA(&hi2c1, ADXL345_ADDR, REG_DATA_FORMAT, 1, &data, 1);
+    // Habilitar interrupción por nuevo dato (DATA_READY)
+    config = 0x80; // Bit 7
+    HAL_I2C_Mem_Write_DMA(&hi2c1, ADXL345_ADDR, 0x2E, 1, &config, 1);
+    // Nos aseguramos de que el evento vaya a INT1
+    config = 0x00; // Bit 7 en 0 → DATA_READY en INT1
+    HAL_I2C_Mem_Write_DMA(&hi2c1, ADXL345_ADDR, 0x2F, 1, &config, 1);
+
 }
 //Llamamos el callback para el blinky
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
@@ -383,6 +422,32 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
     	fsm.estado = Blinky;
     }
 }
+
+//Llamamos el callback del EXTI
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
+	//Verificamos que sea en el puerto y pin correcto
+    if (GPIO_Pin == actualizacionDato_Pin) {
+        // Leer el INT_SOURCE para confirmar que es DATA_READY
+        uint8_t int_source = 0;
+        HAL_I2C_Mem_Read_DMA(&hi2c1, ADXL345_ADDR, 0x30, 1, &int_source, 1);
+
+        if (int_source & 0x80) {
+            //Cambiamos de estado a leerDato
+        	fsm.estado =leerDato;
+        }
+    }
+}
+
+//Llamamos el callback para el I2C
+void HAL_I2C_MemRxCpltCallback(I2C_HandleTypeDef *hi2c) {
+    if (hi2c->Instance == I2C1) {
+    	//Cambiamos de estado a guardarDato
+    	fsm.estado = guardarDato;
+
+        // Aquí puedes convertir a 'g' o enviar por UART, etc.
+    }
+}
+
 /* USER CODE END 4 */
 
 /**
