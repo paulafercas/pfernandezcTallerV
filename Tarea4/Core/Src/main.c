@@ -32,7 +32,7 @@
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 #define ADXL345_ADDR       (0x53 << 1) // Dirección I2C del ADXL345 (con bit R/W en 0)
-#define REG_POWER_CTL      0x2D //Dirección POWER CTL
+#define REG_POWER_CTL      0x2D //Registro que controla en qué estado se encuentra el acelerometro
 #define REG_DATA_FORMAT    0x31 //Registro para seleccionar el rango
 #define REG_DATAX0         0x32 //Registro del dato en x
 /* USER CODE END PD */
@@ -56,6 +56,8 @@ UART_HandleTypeDef huart2;
 //tiene la maquina
 estadoActual fsm ={0};
 
+// Para almacenar los 6 bytes de X, Y, Z
+uint8_t adxl_data[6];
 //Variables para las aceleraciones en cada eje
 int16_t aceleracionx =0;
 int16_t aceleraciony =0;
@@ -71,6 +73,11 @@ static void MX_USART2_UART_Init(void);
 static void MX_TIM2_Init(void);
 static void MX_I2C1_Init(void);
 /* USER CODE BEGIN PFP */
+
+//Función para asignar cada uno de los posibles estados de la maquina
+void maquinaEstados (void);
+//Funcion para inicializar el acelerometro
+void ADXL345_Init(void);
 
 /* USER CODE END PFP */
 
@@ -112,13 +119,22 @@ int main(void)
   MX_TIM2_Init();
   MX_I2C1_Init();
   /* USER CODE BEGIN 2 */
+  //Inicializamos el timer 2 para el blinky
   HAL_TIM_Base_Start_IT(&htim2);
+
+  //Inicializamos el acelerometro
+  ADXL345_Init();
+
+  //Inicializamos el estado del acelerometro
+  fsm.estado = IDLE;
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+	  maquinaEstados();
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -329,12 +345,42 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+//Funcion de la maquina de estados
+void maquinaEstados(void){
+	switch (fsm.estado){
+	case Blinky:{
+		HAL_GPIO_TogglePin(blinky_GPIO_Port, blinky_Pin);
+		fsm.estado = IDLE;
+		break;
+	}
+	case IDLE:{
+		break;
+	}
+	default:{
+		__NOP();
+		break;
+	}
+	}
+}
+//Funcion para inicializar el acelerometro
+void ADXL345_Init(void) {
+	//Creamos una variable donde vamos a guardar el valor del registro 0x2D
+    uint8_t data;
+    // El valor del registro es 0b1000 para que esté en modo medicion
+    data = 0x08;
+    //Escribimos el debido registro para inicializar correctamente el acelerometro
+    HAL_I2C_Mem_Write_DMA(&hi2c1, ADXL345_ADDR, REG_POWER_CTL, 1, &data, 1);
+    //Ponemos el formato en (0x31) = 0x01 (±4g)
+    data = 0x01;
+    //Escribimos ese valor en el registro 0x31 del ADXL345
+    HAL_I2C_Mem_Write_DMA(&hi2c1, ADXL345_ADDR, REG_DATA_FORMAT, 1, &data, 1);
+}
 //Llamamos el callback para el blinky
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 	// Nos aseguramos de que sea el TIMER2 el que haga la interrupcion
     if (htim->Instance == TIM2){
     	//Cambiamos de estado a blinky
-    	HAL_GPIO_TogglePin(blinky_GPIO_Port, blinky_Pin);
+    	fsm.estado = Blinky;
     }
 }
 /* USER CODE END 4 */
