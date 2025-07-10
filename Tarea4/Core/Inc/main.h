@@ -37,9 +37,10 @@ extern "C" {
 /* Exported types ------------------------------------------------------------*/
 /* USER CODE BEGIN ET */
 typedef enum{
-	leerDato,
+	leerDMA,
 	guardarDato,
 	mostrarPantalla,
+	mensaje,
 	Blinky,
 	IDLE
 }posiblesEstados;
@@ -74,6 +75,8 @@ void Error_Handler(void);
 #define USART_TX_GPIO_Port GPIOA
 #define USART_RX_Pin GPIO_PIN_3
 #define USART_RX_GPIO_Port GPIOA
+#define ledPrueba_Pin GPIO_PIN_6
+#define ledPrueba_GPIO_Port GPIOA
 #define actualizacionDato_Pin GPIO_PIN_2
 #define actualizacionDato_GPIO_Port GPIOB
 #define actualizacionDato_EXTI_IRQn EXTI2_IRQn

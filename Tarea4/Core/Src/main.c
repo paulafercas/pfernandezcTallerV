@@ -35,6 +35,7 @@
 #define REG_POWER_CTL      0x2D //Registro que controla en qué estado se encuentra el acelerometro
 #define REG_DATA_FORMAT    0x31 //Registro para seleccionar el rango
 #define REG_DATAX0         0x32 //Registro del dato en x
+#define REG_DEVID      	   0x00
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -63,8 +64,16 @@ int16_t aceleracionx =0;
 int16_t aceleraciony =0;
 int16_t aceleracionz =0;
 
+//Variables para expresar las aceleracion en terminos de
+float g_x =0;
+float g_y =0;
+float g_z =0;
+
 //Variable para almacenara configuraciones para las interrupciones
 uint8_t config =0;
+
+// Flag de interrupción
+volatile uint8_t flag_interrupcion_ADXL = 0;
 
 /* USER CODE END PV */
 
@@ -81,7 +90,8 @@ static void MX_I2C1_Init(void);
 void maquinaEstados (void);
 //Funcion para inicializar el acelerometro
 void ADXL345_Init(void);
-
+//Funcion para guardar el valor de las aceleraciones
+void aceleraciones (void);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -128,13 +138,8 @@ int main(void)
   //Inicializamos el acelerometro
   ADXL345_Init();
 
-  //Iniciamos lectura con la DMA
-  // Leer 6 bytes desde el registro DATAX0 (x, y, z)
-  HAL_I2C_Mem_Read_DMA(&hi2c1, ADXL345_ADDR, REG_DATAX0, 1, adxl_data, 6);
-
-
   //Inicializamos el estado del acelerometro
-  fsm.estado = IDLE;
+  fsm.estado = leerDMA;
 
   /* USER CODE END 2 */
 
@@ -341,12 +346,22 @@ static void MX_GPIO_Init(void)
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(blinky_GPIO_Port, blinky_Pin, GPIO_PIN_RESET);
 
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(ledPrueba_GPIO_Port, ledPrueba_Pin, GPIO_PIN_RESET);
+
   /*Configure GPIO pin : blinky_Pin */
   GPIO_InitStruct.Pin = blinky_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(blinky_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : ledPrueba_Pin */
+  GPIO_InitStruct.Pin = ledPrueba_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(ledPrueba_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pin : actualizacionDato_Pin */
   GPIO_InitStruct.Pin = actualizacionDato_Pin;
@@ -366,18 +381,20 @@ static void MX_GPIO_Init(void)
 //Funcion de la maquina de estados
 void maquinaEstados(void){
 	switch (fsm.estado){
-	case leerDato:{
-        HAL_I2C_Mem_Read_DMA(&hi2c1, ADXL345_ADDR, 0x32, 1, adxl_data, 6);
-		break;
+	case leerDMA:{
+    	HAL_I2C_Mem_Read_DMA(&hi2c1, ADXL345_ADDR, 0x32, 1, adxl_data, 6);
+    	break;
 	}
 	case guardarDato:{
-        aceleracionx = (int16_t)((adxl_data[1] << 8) | adxl_data[0]);
-        aceleraciony = (int16_t)((adxl_data[3] << 8) | adxl_data[2]);
-        aceleracionz = (int16_t)((adxl_data[5] << 8) | adxl_data[4]);
+		aceleraciones();
         fsm.estado = mostrarPantalla;
 		break;
 	}
 	case mostrarPantalla:{
+		fsm.estado = leerDMA;
+		break;
+	}
+	case mensaje:{
 		break;
 	}
 	case Blinky:{
@@ -389,29 +406,40 @@ void maquinaEstados(void){
 		break;
 	}
 	default:{
-		__NOP();
+		fsm.estado = guardarDato;
 		break;
 	}
 	}
 }
 //Funcion para inicializar el acelerometro
 void ADXL345_Init(void) {
-	//Creamos una variable donde vamos a guardar el valor del registro 0x2D
-    uint8_t data;
-    // El valor del registro es 0b1000 para que esté en modo medicion
-    data = 0x08;
-    //Escribimos el debido registro para inicializar correctamente el acelerometro
-    HAL_I2C_Mem_Write_DMA(&hi2c1, ADXL345_ADDR, REG_POWER_CTL, 1, &data, 1);
-    //Ponemos el formato en (0x31) = 0x01 (±4g)
-    data = 0x01;
-    //Escribimos ese valor en el registro 0x31 del ADXL345
-    HAL_I2C_Mem_Write_DMA(&hi2c1, ADXL345_ADDR, REG_DATA_FORMAT, 1, &data, 1);
-    // Habilitar interrupción por nuevo dato (DATA_READY)
-    config = 0x80; // Bit 7
-    HAL_I2C_Mem_Write_DMA(&hi2c1, ADXL345_ADDR, 0x2E, 1, &config, 1);
-    // Nos aseguramos de que el evento vaya a INT1
-    config = 0x00; // Bit 7 en 0 → DATA_READY en INT1
-    HAL_I2C_Mem_Write_DMA(&hi2c1, ADXL345_ADDR, 0x2F, 1, &config, 1);
+	uint8_t data;
+		// 1. Modo medición
+	    data = 0x08;
+	    HAL_I2C_Mem_Write(&hi2c1, ADXL345_ADDR, 0x2D, 1, &data, 1, HAL_MAX_DELAY);
+	    // 2. ±4g
+	    data = 0x01;
+	    HAL_I2C_Mem_Write(&hi2c1, ADXL345_ADDR, 0x31, 1, &data, 1, HAL_MAX_DELAY);
+	    // 3. Habilita DATA_READY
+	    data = 0x80;
+	    HAL_I2C_Mem_Write(&hi2c1, ADXL345_ADDR, 0x2E, 1, &data, 1, HAL_MAX_DELAY);
+	    // 4. Asigna DATA_READY a INT2
+	    data = 0x80; // Bit 7 en 1
+	    HAL_I2C_Mem_Write(&hi2c1, ADXL345_ADDR, 0x2F, 1, &data, 1, HAL_MAX_DELAY);
+	    // 5. Limpia posibles interrupciones previas
+	    HAL_I2C_Mem_Read(&hi2c1, ADXL345_ADDR, 0x30, 1, &data, 1, HAL_MAX_DELAY);
+	    HAL_I2C_Mem_Read(&hi2c1, ADXL345_ADDR, 0x32, 1, adxl_data, 6, HAL_MAX_DELAY);
+}
+
+//Funcion para guardar el valor de las aceleraciones
+void aceleraciones (void){
+    aceleracionx = (int16_t)((adxl_data[1] << 8) | adxl_data[0]);
+    aceleraciony = (int16_t)((adxl_data[3] << 8) | adxl_data[2]);
+    aceleracionz = (int16_t)((adxl_data[5] << 8) | adxl_data[4]);
+    g_x = aceleracionx*0.0078;
+    g_y = aceleraciony*0.0078;
+    g_z = aceleracionz*0.0078;
+
 
 }
 //Llamamos el callback para el blinky
@@ -425,26 +453,18 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 
 //Llamamos el callback del EXTI
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
-	//Verificamos que sea en el puerto y pin correcto
-    if (GPIO_Pin == actualizacionDato_Pin) {
-        // Leer el INT_SOURCE para confirmar que es DATA_READY
-        uint8_t int_source = 0;
-        HAL_I2C_Mem_Read_DMA(&hi2c1, ADXL345_ADDR, 0x30, 1, &int_source, 1);
-
-        if (int_source & 0x80) {
-            //Cambiamos de estado a leerDato
-        	fsm.estado =leerDato;
-        }
+    if (GPIO_Pin == GPIO_PIN_2) { // PB2 conectado a INT2 del ADXL345
+    	HAL_I2C_Mem_Read_DMA(&hi2c1, ADXL345_ADDR, 0x32, 1, adxl_data, 6);
+    }
+    else{
+    	__NOP();
     }
 }
 
 //Llamamos el callback para el I2C
 void HAL_I2C_MemRxCpltCallback(I2C_HandleTypeDef *hi2c) {
     if (hi2c->Instance == I2C1) {
-    	//Cambiamos de estado a guardarDato
-    	fsm.estado = guardarDato;
-
-        // Aquí puedes convertir a 'g' o enviar por UART, etc.
+    	fsm.estado =guardarDato;
     }
 }
 
