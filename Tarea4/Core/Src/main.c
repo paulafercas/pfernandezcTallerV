@@ -26,16 +26,14 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-
+// Dirección I2C con bit R/W en 0
+#define MPU6050_ADDR (0x68 << 1)
+// Primer registro de datos del acelerómetro
+#define MPU6050_REG_ACCEL 0x3B
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define ADXL345_ADDR       (0x53 << 1) // Dirección I2C del ADXL345 (con bit R/W en 0)
-#define REG_POWER_CTL      0x2D //Registro que controla en qué estado se encuentra el acelerometro
-#define REG_DATA_FORMAT    0x31 //Registro para seleccionar el rango
-#define REG_DATAX0         0x32 //Registro del dato en x
-#define REG_DEVID      	   0x00
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -48,6 +46,8 @@ I2C_HandleTypeDef hi2c1;
 DMA_HandleTypeDef hdma_i2c1_rx;
 DMA_HandleTypeDef hdma_i2c1_tx;
 
+SPI_HandleTypeDef hspi1;
+
 TIM_HandleTypeDef htim2;
 
 UART_HandleTypeDef huart2;
@@ -57,8 +57,10 @@ UART_HandleTypeDef huart2;
 //tiene la maquina
 estadoActual fsm ={0};
 
-// Para almacenar los 6 bytes de X, Y, Z
-uint8_t adxl_data[6];
+
+SD_MPU6050 mpu6050;
+SD_MPU6050_Result result;
+
 //Variables para las aceleraciones en cada eje
 int16_t aceleracionx =0;
 int16_t aceleraciony =0;
@@ -69,12 +71,6 @@ float g_x =0;
 float g_y =0;
 float g_z =0;
 
-//Variable para almacenara configuraciones para las interrupciones
-uint8_t config =0;
-
-// Flag de interrupción
-volatile uint8_t flag_interrupcion_ADXL = 0;
-
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -84,14 +80,12 @@ static void MX_DMA_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_TIM2_Init(void);
 static void MX_I2C1_Init(void);
+static void MX_SPI1_Init(void);
 /* USER CODE BEGIN PFP */
 
 //Función para asignar cada uno de los posibles estados de la maquina
 void maquinaEstados (void);
-//Funcion para inicializar el acelerometro
-void ADXL345_Init(void);
-//Funcion para guardar el valor de las aceleraciones
-void aceleraciones (void);
+
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -131,15 +125,23 @@ int main(void)
   MX_USART2_UART_Init();
   MX_TIM2_Init();
   MX_I2C1_Init();
+  MX_SPI1_Init();
   /* USER CODE BEGIN 2 */
   //Inicializamos el timer 2 para el blinky
   HAL_TIM_Base_Start_IT(&htim2);
 
-  //Inicializamos el acelerometro
-  ADXL345_Init();
+  /* Inicialización del MPU6050 */
+  result = SD_MPU6050_Init(&hi2c1, &mpu6050, SD_MPU6050_Device_0, SD_MPU6050_Accelerometer_2G, SD_MPU6050_Gyroscope_250s);
+  //Inicializamos las interrupciones en el MPU6050
+  HAL_Delay(500);
+  if (result == SD_MPU6050_Result_Ok) {
+      SD_MPU6050_EnableInterrupts(&hi2c1, &mpu6050);
+  } else {
+	  __NOP();
+  }
 
-  //Inicializamos el estado del acelerometro
-  fsm.estado = leerDMA;
+  //Inicializamos el estado de la maquina de estados
+  fsm.estado = guardarDato;
 
   /* USER CODE END 2 */
 
@@ -212,8 +214,8 @@ static void MX_I2C1_Init(void)
 
   /* USER CODE END I2C1_Init 1 */
   hi2c1.Instance = I2C1;
-  hi2c1.Init.ClockSpeed = 400000;
-  hi2c1.Init.DutyCycle = I2C_DUTYCYCLE_16_9;
+  hi2c1.Init.ClockSpeed = 100000;
+  hi2c1.Init.DutyCycle = I2C_DUTYCYCLE_2;
   hi2c1.Init.OwnAddress1 = 0;
   hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
   hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
@@ -227,6 +229,44 @@ static void MX_I2C1_Init(void)
   /* USER CODE BEGIN I2C1_Init 2 */
 
   /* USER CODE END I2C1_Init 2 */
+
+}
+
+/**
+  * @brief SPI1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_SPI1_Init(void)
+{
+
+  /* USER CODE BEGIN SPI1_Init 0 */
+
+  /* USER CODE END SPI1_Init 0 */
+
+  /* USER CODE BEGIN SPI1_Init 1 */
+
+  /* USER CODE END SPI1_Init 1 */
+  /* SPI1 parameter configuration*/
+  hspi1.Instance = SPI1;
+  hspi1.Init.Mode = SPI_MODE_MASTER;
+  hspi1.Init.Direction = SPI_DIRECTION_2LINES;
+  hspi1.Init.DataSize = SPI_DATASIZE_8BIT;
+  hspi1.Init.CLKPolarity = SPI_POLARITY_LOW;
+  hspi1.Init.CLKPhase = SPI_PHASE_1EDGE;
+  hspi1.Init.NSS = SPI_NSS_SOFT;
+  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_2;
+  hspi1.Init.FirstBit = SPI_FIRSTBIT_MSB;
+  hspi1.Init.TIMode = SPI_TIMODE_DISABLE;
+  hspi1.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
+  hspi1.Init.CRCPolynomial = 10;
+  if (HAL_SPI_Init(&hspi1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN SPI1_Init 2 */
+
+  /* USER CODE END SPI1_Init 2 */
 
 }
 
@@ -365,7 +405,7 @@ static void MX_GPIO_Init(void)
 
   /*Configure GPIO pin : actualizacionDato_Pin */
   GPIO_InitStruct.Pin = actualizacionDato_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(actualizacionDato_GPIO_Port, &GPIO_InitStruct);
 
@@ -381,17 +421,21 @@ static void MX_GPIO_Init(void)
 //Funcion de la maquina de estados
 void maquinaEstados(void){
 	switch (fsm.estado){
-	case leerDMA:{
-    	HAL_I2C_Mem_Read_DMA(&hi2c1, ADXL345_ADDR, 0x32, 1, adxl_data, 6);
+	case guardarDato:{
+	    SD_MPU6050_ReadAccelerometer(&hi2c1,&mpu6050);
+	    //Guardamos los datos en las variables de la aceleracion
+	    aceleracionx = mpu6050.Accelerometer_X;
+	    aceleraciony = mpu6050.Accelerometer_Y;
+	    aceleracionz = mpu6050.Accelerometer_Z;
+	    //Transformamos los valores en términos de la gravedad g
+		g_x = (float)aceleracionx / 16384.0f;
+		g_y = (float)aceleraciony / 16384.0f;
+		g_z = (float)aceleracionz / 16384.0f;
     	break;
 	}
-	case guardarDato:{
-		aceleraciones();
-        fsm.estado = mostrarPantalla;
-		break;
-	}
 	case mostrarPantalla:{
-		fsm.estado = leerDMA;
+		fsm.estado = IDLE;
+		__HAL_GPIO_EXTI_CLEAR_IT(GPIO_PIN_2);
 		break;
 	}
 	case mensaje:{
@@ -411,37 +455,8 @@ void maquinaEstados(void){
 	}
 	}
 }
-//Funcion para inicializar el acelerometro
-void ADXL345_Init(void) {
-	uint8_t data;
-		// 1. Modo medición
-	    data = 0x08;
-	    HAL_I2C_Mem_Write(&hi2c1, ADXL345_ADDR, 0x2D, 1, &data, 1, HAL_MAX_DELAY);
-	    // 2. ±4g
-	    data = 0x01;
-	    HAL_I2C_Mem_Write(&hi2c1, ADXL345_ADDR, 0x31, 1, &data, 1, HAL_MAX_DELAY);
-	    // 3. Habilita DATA_READY
-	    data = 0x80;
-	    HAL_I2C_Mem_Write(&hi2c1, ADXL345_ADDR, 0x2E, 1, &data, 1, HAL_MAX_DELAY);
-	    // 4. Asigna DATA_READY a INT2
-	    data = 0x80; // Bit 7 en 1
-	    HAL_I2C_Mem_Write(&hi2c1, ADXL345_ADDR, 0x2F, 1, &data, 1, HAL_MAX_DELAY);
-	    // 5. Limpia posibles interrupciones previas
-	    HAL_I2C_Mem_Read(&hi2c1, ADXL345_ADDR, 0x30, 1, &data, 1, HAL_MAX_DELAY);
-	    HAL_I2C_Mem_Read(&hi2c1, ADXL345_ADDR, 0x32, 1, adxl_data, 6, HAL_MAX_DELAY);
-}
-
-//Funcion para guardar el valor de las aceleraciones
-void aceleraciones (void){
-    aceleracionx = (int16_t)((adxl_data[1] << 8) | adxl_data[0]);
-    aceleraciony = (int16_t)((adxl_data[3] << 8) | adxl_data[2]);
-    aceleracionz = (int16_t)((adxl_data[5] << 8) | adxl_data[4]);
-    g_x = aceleracionx*0.0078;
-    g_y = aceleraciony*0.0078;
-    g_z = aceleracionz*0.0078;
 
 
-}
 //Llamamos el callback para el blinky
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 	// Nos aseguramos de que sea el TIMER2 el que haga la interrupcion
@@ -453,20 +468,11 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 
 //Llamamos el callback del EXTI
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
-    if (GPIO_Pin == GPIO_PIN_2) { // PB2 conectado a INT2 del ADXL345
-    	HAL_I2C_Mem_Read_DMA(&hi2c1, ADXL345_ADDR, 0x32, 1, adxl_data, 6);
-    }
-    else{
-    	__NOP();
-    }
+    if (GPIO_Pin == GPIO_PIN_2) { // PB2 conectado a INT2 del acelerometro
+        	fsm.estado = guardarDato;
+        }
 }
 
-//Llamamos el callback para el I2C
-void HAL_I2C_MemRxCpltCallback(I2C_HandleTypeDef *hi2c) {
-    if (hi2c->Instance == I2C1) {
-    	fsm.estado =guardarDato;
-    }
-}
 
 /* USER CODE END 4 */
 

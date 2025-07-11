@@ -31,13 +31,17 @@ extern "C" {
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "sd_hal_mpu6050.h"
 #include "stdio.h"
+#include <stdint.h>
+#include <string.h>
+#include <stdlib.h>
+#include <stdbool.h>
 /* USER CODE END Includes */
 
 /* Exported types ------------------------------------------------------------*/
 /* USER CODE BEGIN ET */
 typedef enum{
-	leerDMA,
 	guardarDato,
 	mostrarPantalla,
 	mensaje,
