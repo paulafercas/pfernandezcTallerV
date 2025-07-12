@@ -352,7 +352,7 @@ SD_MPU6050_Result SD_MPU6050_EnableInterrupts(I2C_HandleTypeDef* I2Cx, SD_MPU605
 
     // Leer configuración actual del INT_PIN_CFG
     while (HAL_I2C_Master_Transmit(Handle, (uint16_t)address, &mpu_reg, 1, 1000) != HAL_OK);
-    while (HAL_I2C_Master_Receive(Handle, (uint16_t)address, &temp, 1, 1000) != HAL_OK);  // ← aquí estaba el error
+    while (HAL_I2C_Master_Receive(Handle, (uint16_t)address, &temp, 1, 1000) != HAL_OK);
 
     // Habilitar interrupción activa en INT
     temp |= 0x10;
@@ -387,7 +387,7 @@ SD_MPU6050_Result SD_MPU6050_ReadInterrupts(I2C_HandleTypeDef* I2Cx,SD_MPU6050* 
 
 	while(HAL_I2C_Master_Transmit(Handle, (uint16_t)address, &reg, 1, 1000) != HAL_OK);
 
-	while(HAL_I2C_Master_Receive(Handle, (uint16_t)address, &read, 14, 1000) != HAL_OK);
+	while(HAL_I2C_Master_Receive(Handle, (uint16_t)address, &read, 1, 1000) != HAL_OK);
 
 	/* Fill value */
 	InterruptsStruct->Status = read;

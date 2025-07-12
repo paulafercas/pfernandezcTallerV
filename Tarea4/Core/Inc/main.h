@@ -37,6 +37,9 @@ extern "C" {
 #include <string.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include "ssd1306.h"
+#include "ssd1306_tests.h"
+
 /* USER CODE END Includes */
 
 /* Exported types ------------------------------------------------------------*/
@@ -81,9 +84,9 @@ void Error_Handler(void);
 #define USART_RX_GPIO_Port GPIOA
 #define ledPrueba_Pin GPIO_PIN_6
 #define ledPrueba_GPIO_Port GPIOA
-#define actualizacionDato_Pin GPIO_PIN_2
+#define actualizacionDato_Pin GPIO_PIN_12
 #define actualizacionDato_GPIO_Port GPIOB
-#define actualizacionDato_EXTI_IRQn EXTI2_IRQn
+#define actualizacionDato_EXTI_IRQn EXTI15_10_IRQn
 #define TMS_Pin GPIO_PIN_13
 #define TMS_GPIO_Port GPIOA
 #define TCK_Pin GPIO_PIN_14
