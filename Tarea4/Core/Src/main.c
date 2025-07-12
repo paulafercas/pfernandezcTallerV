@@ -30,6 +30,8 @@
 #define MPU6050_ADDR (0x68 << 1)
 // Primer registro de datos del acelerómetro
 #define MPU6050_REG_ACCEL 0x3B
+// Valor para suavizar el filtro de forma exponencial
+#define ALPHA 0.1f
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -65,10 +67,22 @@ int16_t aceleracionx =0;
 int16_t aceleraciony =0;
 int16_t aceleracionz =0;
 
+//Variables para dar las aceleraciones filtradas
+float accX_filt = 0;
+float accY_filt = 0;
+float accZ_filt = 0;
+
 //Variables para expresar las aceleracion en terminos de
 float g_x =0;
 float g_y =0;
 float g_z =0;
+
+//Buffer para guardar en string los valores de las aceleraciones
+char buffer[32];
+
+//Contador de lecturas para el acelerometro
+static uint8_t contadorLecturas = 0;
+
 
 /* USER CODE END PV */
 
@@ -83,7 +97,7 @@ static void MX_I2C1_Init(void);
 
 //Función para asignar cada uno de los posibles estados de la maquina
 void maquinaEstados (void);
-void I2C_Scan(void);
+
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -387,18 +401,40 @@ void maquinaEstados(void){
 	case guardarDato:{
 	    SD_MPU6050_ReadAccelerometer(&hi2c1,&mpu6050);
 	    //Guardamos los datos en las variables de la aceleracion
-	    aceleracionx = mpu6050.Accelerometer_X;
-	    aceleraciony = mpu6050.Accelerometer_Y;
-	    aceleracionz = mpu6050.Accelerometer_Z;
+	    aceleracionx = mpu6050.Accelerometer_X * mpu6050.Acce_Mult;
+	    aceleraciony = mpu6050.Accelerometer_Y * mpu6050.Acce_Mult;
+	    aceleracionz = mpu6050.Accelerometer_Z * mpu6050.Acce_Mult;
+
+	    //Filtramos los valores
+	    accX_filt = ALPHA * aceleracionx + (1.0f - ALPHA) * accX_filt;
+	    accY_filt = ALPHA * aceleraciony + (1.0f - ALPHA) * accY_filt;
+	    accZ_filt = ALPHA * aceleracionz + (1.0f - ALPHA) * accZ_filt;
+
 	    //Transformamos los valores en términos de la gravedad g
-		g_x = (float)aceleracionx / 16384.0f;
-		g_y = (float)aceleraciony / 16384.0f;
-		g_z = (float)aceleracionz / 16384.0f;
+		g_x = accX_filt * 9.81f;
+		g_y = accY_filt * 9.81f;
+		g_z = accZ_filt * 9.81f;
+		fsm.estado= mostrarPantalla;
+
     	break;
 	}
 	case mostrarPantalla:{
+		ssd1306_Fill(Black);  // Limpiar pantalla
+
+		ssd1306_SetCursor(0, 0);
+		snprintf(buffer, sizeof(buffer), "AcelX: %.2f m/s2", g_x);
+		ssd1306_WriteString(buffer, Font_7x10, White);
+
+		ssd1306_SetCursor(0, 12);
+		snprintf(buffer, sizeof(buffer), "AcelY: %.2f m/s2",g_y );
+		ssd1306_WriteString(buffer, Font_7x10, White);
+
+		ssd1306_SetCursor(0, 24);
+		snprintf(buffer, sizeof(buffer), "AcelZ: %.2f m/s2", g_z);
+		ssd1306_WriteString(buffer, Font_7x10, White);
+
+		ssd1306_UpdateScreen();
 		fsm.estado = IDLE;
-		__HAL_GPIO_EXTI_CLEAR_IT(GPIO_PIN_2);
 		break;
 	}
 	case mensaje:{
@@ -413,7 +449,7 @@ void maquinaEstados(void){
 		break;
 	}
 	default:{
-		fsm.estado = guardarDato;
+		__NOP();
 		break;
 	}
 	}
@@ -430,8 +466,18 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 //Llamamos el callback del EXTI
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
     if (GPIO_Pin == GPIO_PIN_12) { // PB2 conectado a INT2 del acelerometro
-        	fsm.estado = guardarDato;
+		contadorLecturas ++;
+		if (contadorLecturas==4000){
+			contadorLecturas=0;
+		}
+		if (contadorLecturas==5){
+			fsm.estado = guardarDato;
+		}
+		else{
+			fsm.estado =IDLE;
+
         }
+    }
 }
 
 
