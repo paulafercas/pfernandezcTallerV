@@ -102,7 +102,7 @@ int main(void)
   /* USER CODE BEGIN 2 */
   HAL_TIM_Base_Start_IT(&htim2);
 
-  fsm.estado = IDLE;
+  fsm.estado = reproducirAudio;
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -304,6 +304,16 @@ static void MX_GPIO_Init(void)
 //FUncion de maquina de estados
 void maquinaEstados (void){
 	switch (fsm.estado){
+	case reproducirAudio:{
+		//Guardamos la palabra PLAY para reproducir el audio
+		  char msg[] = "PLAY\n";
+		  //Nos aseguramos de que el pin 13 no este ocupado con otra operacion
+		  if (HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13) == GPIO_PIN_RESET) {
+			  //Transmitimos el audio
+		      HAL_UART_Transmit(&huart2, (uint8_t*)msg, strlen(msg), HAL_MAX_DELAY);
+		      HAL_Delay(500);
+		  }
+	}
 	case Blinky:{
     	HAL_GPIO_TogglePin(blinky_GPIO_Port, blinky_Pin);
     	fsm.estado = IDLE;
