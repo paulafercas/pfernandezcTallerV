@@ -32,6 +32,10 @@
 #define MPU6050_REG_ACCEL 0x3B
 // Valor para suavizar el filtro de forma exponencial
 #define ALPHA 0.1f
+//Definimos el tamaño de la FFT
+#define FFT_SIZE 128
+ //Frecuencia de muestreo
+#define SAMPLE_FREQ 100.0f
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -83,6 +87,16 @@ char buffer[32];
 //Contador de lecturas para el acelerometro
 static uint8_t contadorLecturas = 0;
 
+//Variables para la fft
+// Muestras en Z
+float32_t accZ_buffer[FFT_SIZE];
+uint16_t accZ_index = 0;
+uint8_t bufferFull = 0;
+
+float32_t fft_input[2 * FFT_SIZE];    // Interleaved real/imag para la FFT
+float32_t fft_output[FFT_SIZE];       // Magnitudes
+//Variable global para la frecuencia dominante
+float dominante =0;
 
 /* USER CODE END PV */
 
@@ -97,6 +111,8 @@ static void MX_I2C1_Init(void);
 
 //Función para asignar cada uno de los posibles estados de la maquina
 void maquinaEstados (void);
+//Funcion para calcular la frecuencia dominante
+float calcularFrecuenciaDominante(void);
 
 /* USER CODE END PFP */
 
@@ -152,7 +168,7 @@ int main(void)
 
   //Inicializamos la pantalla
   ssd1306_Init();
-  //Probamos todo en la pantalla
+  //Probamos en la pantalla
   //ssd1306_TestAll();
 
   //Inicializamos el estado de la maquina de estados
@@ -414,6 +430,14 @@ void maquinaEstados(void){
 		g_x = accX_filt * 9.81f;
 		g_y = accY_filt * 9.81f;
 		g_z = accZ_filt * 9.81f;
+
+		//Guardamos los datos correspondientes a la aceleracion en z
+		accZ_buffer[accZ_index++] = g_z;
+		//Nos aseguramos de que este arreglo no se vaya a desbordar
+		if (accZ_index >= FFT_SIZE) {
+		    accZ_index = 0;
+		    bufferFull = 1;
+		}
 		fsm.estado= mostrarPantalla;
 
     	break;
@@ -434,6 +458,17 @@ void maquinaEstados(void){
 		ssd1306_WriteString(buffer, Font_7x10, White);
 
 		ssd1306_UpdateScreen();
+
+		if (bufferFull) {
+		    float freq = calcularFrecuenciaDominante();
+		    bufferFull = 0;
+
+		    ssd1306_Fill(Black);
+		    ssd1306_SetCursor(0, 0);
+		    snprintf(buffer, sizeof(buffer), "Freq Z: %.1f Hz", freq);
+		    ssd1306_WriteString(buffer, Font_7x10, White);
+		    ssd1306_UpdateScreen();
+		}
 		fsm.estado = IDLE;
 		break;
 	}
@@ -454,6 +489,35 @@ void maquinaEstados(void){
 	}
 	}
 }
+
+//Funcion que calcula la FFT y frecuencia dominante
+float calcularFrecuenciaDominante(void) {
+    arm_rfft_fast_instance_f32 fft_instance;
+    arm_rfft_fast_init_f32(&fft_instance, FFT_SIZE);
+
+    // Copiamos el buffer
+    memcpy(fft_input, accZ_buffer, sizeof(accZ_buffer));
+
+    // Hacemos la FFT
+    arm_rfft_fast_f32(&fft_instance, fft_input, fft_input, 0);
+
+    // Calculamos el espectro (magnitud)
+    for (int i = 0; i < FFT_SIZE / 2; i++) {
+        float real = fft_input[2 * i];
+        float imag = fft_input[2 * i + 1];
+        fft_output[i] = sqrtf(real * real + imag * imag);
+    }
+
+    // Buscamos el índice de la magnitud máxima
+    uint32_t indexMax = 0;
+    float maxValue = 0;
+    arm_max_f32(fft_output, FFT_SIZE / 2, &maxValue, &indexMax);
+
+    // Convertimos índice en frecuencia
+    float freqDominante = ((float)indexMax * SAMPLE_FREQ) / FFT_SIZE;
+    return freqDominante;
+}
+
 //Llamamos el callback para el blinky
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 	// Nos aseguramos de que sea el TIMER2 el que haga la interrupcion
