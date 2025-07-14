@@ -191,6 +191,24 @@ void ssd1306_UpdateScreen(void) {
         ssd1306_WriteData(&SSD1306_Buffer[SSD1306_WIDTH*i],SSD1306_WIDTH);
     }
 }
+//Funcion para actualizar solo una porcion de la pantalla
+void ssd1306_UpdateRect(uint8_t x, uint8_t y, uint8_t w, uint8_t h) {
+    if (x >= SSD1306_WIDTH || y >= SSD1306_HEIGHT) return;
+
+    uint8_t startPage = y / 8;
+    uint8_t endPage = (y + h - 1) / 8;
+    uint8_t endX = x + w;
+
+    for (uint8_t page = startPage; page <= endPage; page++) {
+        ssd1306_WriteCommand(0xB0 + page); // Page address
+        ssd1306_WriteCommand(0x00 + (x & 0x0F));           // Lower column start address
+        ssd1306_WriteCommand(0x10 + ((x >> 4) & 0x0F));    // Higher column start address
+
+        uint16_t offset = page * SSD1306_WIDTH + x;
+        uint8_t len = (endX <= SSD1306_WIDTH) ? (endX - x) : (SSD1306_WIDTH - x);
+        ssd1306_WriteData(&SSD1306_Buffer[offset], len);
+    }
+}
 
 /*
  * Draw one pixel in the screenbuffer
@@ -266,6 +284,7 @@ char ssd1306_WriteString(char* str, SSD1306_Font_t Font, SSD1306_COLOR color) {
     
     // Everything ok
     return *str;
+
 }
 
 /* Position the cursor */

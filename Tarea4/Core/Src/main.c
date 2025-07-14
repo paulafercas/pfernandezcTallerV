@@ -67,9 +67,9 @@ SD_MPU6050_Result result;
 volatile bool newDataAvailable = false;
 
 //Variables para las aceleraciones en cada eje
-int16_t aceleracionx =0;
-int16_t aceleraciony =0;
-int16_t aceleracionz =0;
+float aceleracionx =0;
+float aceleraciony =0;
+float aceleracionz =0;
 
 //Variables para dar las aceleraciones filtradas
 float accX_filt = 0;
@@ -84,6 +84,7 @@ float g_z =0;
 //Buffer para guardar en string los valores de las aceleraciones
 char buffer[32];
 
+char buf[32];
 //Contador de lecturas para el acelerometro
 static uint8_t contadorLecturas = 0;
 
@@ -113,7 +114,8 @@ static void MX_I2C1_Init(void);
 void maquinaEstados (void);
 //Funcion para calcular la frecuencia dominante
 float calcularFrecuenciaDominante(void);
-
+//Funcion para mostrar los cuadros principales
+void cuadrosPrincipales (void);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -171,6 +173,10 @@ int main(void)
   //Probamos en la pantalla
   //ssd1306_TestAll();
 
+  //Inicializamos las etiquetas de la pantalla
+  cuadrosPrincipales();
+
+
   //Inicializamos el estado de la maquina de estados
   fsm.estado = guardarDato;
 
@@ -208,7 +214,12 @@ void SystemClock_Config(void)
   RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
   RCC_OscInitStruct.HSIState = RCC_HSI_ON;
   RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
-  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_NONE;
+  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
+  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
+  RCC_OscInitStruct.PLL.PLLM = 16;
+  RCC_OscInitStruct.PLL.PLLN = 336;
+  RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV4;
+  RCC_OscInitStruct.PLL.PLLQ = 4;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
   {
     Error_Handler();
@@ -218,12 +229,12 @@ void SystemClock_Config(void)
   */
   RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
                               |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
-  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_HSI;
+  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
   RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
   RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV2;
   RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_0) != HAL_OK)
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK)
   {
     Error_Handler();
   }
@@ -284,7 +295,7 @@ static void MX_TIM2_Init(void)
   htim2.Instance = TIM2;
   htim2.Init.Prescaler = 16000-1;
   htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim2.Init.Period = 250-1;
+  htim2.Init.Period = 800-1;
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
@@ -427,9 +438,9 @@ void maquinaEstados(void){
 	    accZ_filt = ALPHA * aceleracionz + (1.0f - ALPHA) * accZ_filt;
 
 	    //Transformamos los valores en términos de la gravedad g
-		g_x = accX_filt * 9.81f;
-		g_y = accY_filt * 9.81f;
-		g_z = accZ_filt * 9.81f;
+		g_x = accX_filt * 9.65f;
+		g_y = accY_filt * 9.65f;
+		g_z = accZ_filt * 9.65f;
 
 		//Guardamos los datos correspondientes a la aceleracion en z
 		accZ_buffer[accZ_index++] = g_z;
@@ -438,37 +449,48 @@ void maquinaEstados(void){
 		    accZ_index = 0;
 		    bufferFull = 1;
 		}
-		fsm.estado= mostrarPantalla;
-
+		contadorLecturas ++;
+		if (contadorLecturas==4000){
+			contadorLecturas=0;
+		}
+		if (contadorLecturas==5){
+			fsm.estado= mostrarPantalla;
+		}
+		else{
+			fsm.estado =IDLE;
+		}
     	break;
 	}
 	case mostrarPantalla:{
-		ssd1306_Fill(Black);  // Limpiar pantalla
 
-		ssd1306_SetCursor(0, 0);
-		snprintf(buffer, sizeof(buffer), "AcelX: %.2f m/s2", g_x);
+		ssd1306_FillRectangle(45, 0, 128, 10, Black);  // Borra anterior
+		ssd1306_SetCursor(45, 0);
+		snprintf(buf, sizeof(buf), "%.2f", g_x);
+		ssd1306_WriteString(buf, Font_7x10, White);
+
+	    ssd1306_FillRectangle(45, 16, 128, 26, Black);
+		ssd1306_SetCursor(45, 16);
+		snprintf(buf, sizeof(buf), "%.2f", g_y);
+		ssd1306_WriteString(buf, Font_7x10, White);
+
+		ssd1306_FillRectangle(45, 32, 128, 42, Black);
+		ssd1306_SetCursor(45, 32);
+		snprintf(buf, sizeof(buf), "%.2f", g_z);
+		ssd1306_WriteString(buf, Font_7x10, White);
+		ssd1306_UpdateRect(45, 0, 40, 10);
+		ssd1306_UpdateRect(45, 16, 40, 10);
+		ssd1306_UpdateRect(45, 32, 40, 10);
+
+
+		float freq = calcularFrecuenciaDominante();
+		bufferFull = 0;
+
+		ssd1306_Fill(Black);
+		ssd1306_SetCursor(45, 48);
+		snprintf(buffer, sizeof(buffer), "%d", (int)freq);
 		ssd1306_WriteString(buffer, Font_7x10, White);
+		ssd1306_UpdateRect(45, 48, 40, 10);
 
-		ssd1306_SetCursor(0, 12);
-		snprintf(buffer, sizeof(buffer), "AcelY: %.2f m/s2",g_y );
-		ssd1306_WriteString(buffer, Font_7x10, White);
-
-		ssd1306_SetCursor(0, 24);
-		snprintf(buffer, sizeof(buffer), "AcelZ: %.2f m/s2", g_z);
-		ssd1306_WriteString(buffer, Font_7x10, White);
-
-		ssd1306_UpdateScreen();
-
-		if (bufferFull) {
-		    float freq = calcularFrecuenciaDominante();
-		    bufferFull = 0;
-
-		    ssd1306_Fill(Black);
-		    ssd1306_SetCursor(0, 0);
-		    snprintf(buffer, sizeof(buffer), "Freq Z: %.1f Hz", freq);
-		    ssd1306_WriteString(buffer, Font_7x10, White);
-		    ssd1306_UpdateScreen();
-		}
 		fsm.estado = IDLE;
 		break;
 	}
@@ -490,6 +512,27 @@ void maquinaEstados(void){
 	}
 }
 
+//Funcion para mostrar los cuadros principales de la pantalla
+void cuadrosPrincipales (void){
+	  ssd1306_Fill(Black);
+	  ssd1306_SetCursor(0, 0);
+	  ssd1306_WriteString("acelX:", Font_7x10, White);
+	  ssd1306_SetCursor(0, 16);
+	  ssd1306_WriteString("acelY:", Font_7x10, White);
+	  ssd1306_SetCursor(0, 32);
+	  ssd1306_WriteString("acelZ:", Font_7x10, White);
+	  ssd1306_SetCursor(0, 48);
+	  ssd1306_WriteString("FrecZ:", Font_7x10, White);
+	  ssd1306_SetCursor(90, 0);
+	  ssd1306_WriteString("m/s2", Font_7x10, White);
+	  ssd1306_SetCursor(90, 16);
+	  ssd1306_WriteString("m/s2", Font_7x10, White);
+	  ssd1306_SetCursor(90, 32);
+	  ssd1306_WriteString("m/s2", Font_7x10, White);
+	  ssd1306_SetCursor(90, 48);
+	  ssd1306_WriteString("Hz", Font_7x10, White);
+	  ssd1306_UpdateScreen();
+}
 //Funcion que calcula la FFT y frecuencia dominante
 float calcularFrecuenciaDominante(void) {
     arm_rfft_fast_instance_f32 fft_instance;
@@ -530,17 +573,10 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 //Llamamos el callback del EXTI
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
     if (GPIO_Pin == GPIO_PIN_12) { // PB2 conectado a INT2 del acelerometro
-		contadorLecturas ++;
-		if (contadorLecturas==4000){
-			contadorLecturas=0;
-		}
-		if (contadorLecturas==5){
-			fsm.estado = guardarDato;
-		}
-		else{
-			fsm.estado =IDLE;
+    	fsm.estado =guardarDato;
 
-        }
+
+
     }
 }
 

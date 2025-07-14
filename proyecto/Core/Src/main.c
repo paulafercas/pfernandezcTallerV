@@ -113,7 +113,8 @@ int main(void)
   //Inicilizamos la pantalla
   //Inicializamos la pantalla
   ssd1306_Init();
-
+  //Probamos en la pantalla
+  //ssd1306_TestAll();
   fsm.estado = reproducirAudio;
   /* USER CODE END 2 */
 
