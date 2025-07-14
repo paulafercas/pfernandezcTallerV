@@ -35,7 +35,7 @@
 //Definimos el tamaño de la FFT
 #define FFT_SIZE 128
  //Frecuencia de muestreo
-#define SAMPLE_FREQ 100.0f
+#define SAMPLE_FREQ 100
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -97,7 +97,7 @@ uint8_t bufferFull = 0;
 float32_t fft_input[2 * FFT_SIZE];    // Interleaved real/imag para la FFT
 float32_t fft_output[FFT_SIZE];       // Magnitudes
 //Variable global para la frecuencia dominante
-float dominante =0;
+float freqDominante =0;
 
 /* USER CODE END PV */
 
@@ -216,9 +216,9 @@ void SystemClock_Config(void)
   RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
-  RCC_OscInitStruct.PLL.PLLM = 16;
-  RCC_OscInitStruct.PLL.PLLN = 336;
-  RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV4;
+  RCC_OscInitStruct.PLL.PLLM = 8;
+  RCC_OscInitStruct.PLL.PLLN = 100;
+  RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
   RCC_OscInitStruct.PLL.PLLQ = 4;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
   {
@@ -234,7 +234,7 @@ void SystemClock_Config(void)
   RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV2;
   RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK)
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_3) != HAL_OK)
   {
     Error_Handler();
   }
@@ -295,7 +295,7 @@ static void MX_TIM2_Init(void)
   htim2.Instance = TIM2;
   htim2.Init.Prescaler = 16000-1;
   htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim2.Init.Period = 800-1;
+  htim2.Init.Period = 400-1;
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
@@ -557,7 +557,7 @@ float calcularFrecuenciaDominante(void) {
     arm_max_f32(fft_output, FFT_SIZE / 2, &maxValue, &indexMax);
 
     // Convertimos índice en frecuencia
-    float freqDominante = ((float)indexMax * SAMPLE_FREQ) / FFT_SIZE;
+    freqDominante = ((float)indexMax * SAMPLE_FREQ) / FFT_SIZE;
     return freqDominante;
 }
 
