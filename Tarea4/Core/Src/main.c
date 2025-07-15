@@ -33,9 +33,9 @@
 // Valor para suavizar el filtro de forma exponencial
 #define ALPHA 0.1f
 //Definimos el tamaño de la FFT
-#define FFT_SIZE 128
+#define FFT_SIZE 256
  //Frecuencia de muestreo
-#define SAMPLE_FREQ 100
+#define SAMPLE_FREQ 1000.0f
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -86,7 +86,7 @@ char buffer[32];
 
 char buf[32];
 //Contador de lecturas para el acelerometro
-static uint8_t contadorLecturas = 0;
+static uint16_t contadorLecturas = 0;
 
 //Variables para la fft
 // Muestras en Z
@@ -113,7 +113,7 @@ static void MX_I2C1_Init(void);
 //Función para asignar cada uno de los posibles estados de la maquina
 void maquinaEstados (void);
 //Funcion para calcular la frecuencia dominante
-float calcularFrecuenciaDominante(void);
+void calcularFrecuenciaDominante(void);
 //Funcion para mostrar los cuadros principales
 void cuadrosPrincipales (void);
 /* USER CODE END PFP */
@@ -295,7 +295,7 @@ static void MX_TIM2_Init(void)
   htim2.Instance = TIM2;
   htim2.Init.Prescaler = 16000-1;
   htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim2.Init.Period = 400-1;
+  htim2.Init.Period = 100-1;
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
@@ -443,14 +443,15 @@ void maquinaEstados(void){
 		g_z = accZ_filt * 9.65f;
 
 		//Guardamos los datos correspondientes a la aceleracion en z
-		accZ_buffer[accZ_index++] = g_z;
+		accZ_buffer[accZ_index++] = aceleracionz;
 		//Nos aseguramos de que este arreglo no se vaya a desbordar
 		if (accZ_index >= FFT_SIZE) {
 		    accZ_index = 0;
 		    bufferFull = 1;
 		}
+
 		contadorLecturas ++;
-		if (contadorLecturas==4000){
+		if (contadorLecturas==200){
 			contadorLecturas=0;
 		}
 		if (contadorLecturas==5){
@@ -459,10 +460,11 @@ void maquinaEstados(void){
 		else{
 			fsm.estado =IDLE;
 		}
+
     	break;
 	}
 	case mostrarPantalla:{
-
+		calcularFrecuenciaDominante();
 		ssd1306_FillRectangle(45, 0, 128, 10, Black);  // Borra anterior
 		ssd1306_SetCursor(45, 0);
 		snprintf(buf, sizeof(buf), "%.2f", g_x);
@@ -481,20 +483,15 @@ void maquinaEstados(void){
 		ssd1306_UpdateRect(45, 16, 40, 10);
 		ssd1306_UpdateRect(45, 32, 40, 10);
 
-
-		float freq = calcularFrecuenciaDominante();
 		bufferFull = 0;
 
 		ssd1306_Fill(Black);
 		ssd1306_SetCursor(45, 48);
-		snprintf(buffer, sizeof(buffer), "%d", (int)freq);
+		snprintf(buffer, sizeof(buffer), "%.1f", freqDominante);
 		ssd1306_WriteString(buffer, Font_7x10, White);
 		ssd1306_UpdateRect(45, 48, 40, 10);
 
-		fsm.estado = IDLE;
-		break;
-	}
-	case mensaje:{
+
 		break;
 	}
 	case Blinky:{
@@ -534,7 +531,18 @@ void cuadrosPrincipales (void){
 	  ssd1306_UpdateScreen();
 }
 //Funcion que calcula la FFT y frecuencia dominante
-float calcularFrecuenciaDominante(void) {
+void calcularFrecuenciaDominante(void) {
+	// 1. Quitar el offset (componente DC)
+	float promedio = 0.0f;
+	for (int i = 0; i < FFT_SIZE; i++) {
+	    promedio += fft_input[i];
+	}
+	promedio /= FFT_SIZE;
+
+	for (int i = 0; i < FFT_SIZE; i++) {
+	    fft_input[i] -= promedio;
+	}
+
     arm_rfft_fast_instance_f32 fft_instance;
     arm_rfft_fast_init_f32(&fft_instance, FFT_SIZE);
 
@@ -554,11 +562,11 @@ float calcularFrecuenciaDominante(void) {
     // Buscamos el índice de la magnitud máxima
     uint32_t indexMax = 0;
     float maxValue = 0;
-    arm_max_f32(fft_output, FFT_SIZE / 2, &maxValue, &indexMax);
+	arm_max_f32(&fft_output[1], FFT_SIZE / 2 - 1, &maxValue, &indexMax);
+	indexMax += 1;
 
     // Convertimos índice en frecuencia
     freqDominante = ((float)indexMax * SAMPLE_FREQ) / FFT_SIZE;
-    return freqDominante;
 }
 
 //Llamamos el callback para el blinky
@@ -574,9 +582,6 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
     if (GPIO_Pin == GPIO_PIN_12) { // PB2 conectado a INT2 del acelerometro
     	fsm.estado =guardarDato;
-
-
-
     }
 }
 

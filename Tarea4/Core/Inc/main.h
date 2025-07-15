@@ -50,7 +50,6 @@ extern "C" {
 typedef enum{
 	guardarDato,
 	mostrarPantalla,
-	mensaje,
 	Blinky,
 	IDLE
 }posiblesEstados;
