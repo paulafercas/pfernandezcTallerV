@@ -45,7 +45,7 @@ extern "C" {
 /* USER CODE BEGIN ET */
 typedef enum{
 	reproducirAudio,
-	expresionRostro,
+	accion,
 	Blinky,
 	IDLE
 }posiblesEstados;

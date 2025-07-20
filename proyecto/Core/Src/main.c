@@ -950,7 +950,7 @@ static void MX_TIM3_Init(void);
 //Funcion de maquina de estados
 void maquinaEstados (void);
 //Funcion para mostrar las expresiones
-void expresion (void);
+void acciones (void);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -1263,8 +1263,8 @@ void maquinaEstados (void){
 		      break;
 		  }
 	}
-	case expresionRostro:{
-		expresion();
+	case accion:{
+		acciones();
 		fsm.estado = IDLE;
 		break;
 	}
@@ -1282,7 +1282,7 @@ void maquinaEstados (void){
 	}
 }
 //Funcion para asignar que expresion queremos en el tiempo determinado
-void expresion (void){
+void acciones (void){
 	switch (contador3){
 	case 6:{
 		  ssd1306_Fill(Black);
@@ -1400,7 +1400,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
     }
     else if (htim -> Instance ==TIM3){
     	contador3 ++;
-    	fsm.estado = expresionRostro;
+    	fsm.estado = accion;
     }
 }
 /* USER CODE END 4 */
