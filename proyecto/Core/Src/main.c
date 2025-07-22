@@ -995,11 +995,13 @@ int main(void)
   MX_TIM1_Init();
   /* USER CODE BEGIN 2 */
   //Inicializamos los timers y sus interrupciones
+  HAL_TIM_Base_Start(&htim1); //Sin interrupcion
   HAL_TIM_Base_Start_IT(&htim2);
   HAL_TIM_Base_Start_IT(&htim3);
+  //Inicializamos el sentido de giro del stepper
+  HAL_GPIO_WritePin(DIR_GPIO_Port, DIR_Pin,RESET);
   //Inicializamos el PWM para el stepper
   HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_4);
-
 
   //Inicilizamos la pantalla
   //Inicializamos la pantalla
@@ -1122,9 +1124,9 @@ static void MX_TIM1_Init(void)
 
   /* USER CODE END TIM1_Init 1 */
   htim1.Instance = TIM1;
-  htim1.Init.Prescaler = 16000;
+  htim1.Init.Prescaler = 16-1;
   htim1.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim1.Init.Period = 500;
+  htim1.Init.Period = 1000-1;
   htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim1.Init.RepetitionCounter = 0;
   htim1.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
@@ -1148,7 +1150,7 @@ static void MX_TIM1_Init(void)
     Error_Handler();
   }
   sConfigOC.OCMode = TIM_OCMODE_PWM1;
-  sConfigOC.Pulse = 250;
+  sConfigOC.Pulse = 200;
   sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
   sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
   sConfigOC.OCIdleState = TIM_OCIDLESTATE_RESET;
