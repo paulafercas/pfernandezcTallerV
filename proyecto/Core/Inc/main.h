@@ -77,20 +77,30 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
+#define enable_Pin GPIO_PIN_13
+#define enable_GPIO_Port GPIOC
 #define blinky_Pin GPIO_PIN_1
 #define blinky_GPIO_Port GPIOH
+#define DIR_Pin GPIO_PIN_2
+#define DIR_GPIO_Port GPIOC
 #define USART_TX_Pin GPIO_PIN_2
 #define USART_TX_GPIO_Port GPIOA
 #define USART_RX_Pin GPIO_PIN_3
 #define USART_RX_GPIO_Port GPIOA
-#define DIR_Pin GPIO_PIN_12
-#define DIR_GPIO_Port GPIOB
+#define finalIzquierdo_Pin GPIO_PIN_5
+#define finalIzquierdo_GPIO_Port GPIOA
+#define finalIzquierdo_EXTI_IRQn EXTI9_5_IRQn
+#define finalDerecho_Pin GPIO_PIN_6
+#define finalDerecho_GPIO_Port GPIOA
+#define finalDerecho_EXTI_IRQn EXTI9_5_IRQn
 #define TMS_Pin GPIO_PIN_13
 #define TMS_GPIO_Port GPIOA
 #define TCK_Pin GPIO_PIN_14
 #define TCK_GPIO_Port GPIOA
 #define SWO_Pin GPIO_PIN_3
 #define SWO_GPIO_Port GPIOB
+#define STEP_Pin GPIO_PIN_7
+#define STEP_GPIO_Port GPIOB
 
 /* USER CODE BEGIN Private defines */
 
