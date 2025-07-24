@@ -1148,6 +1148,7 @@ void despacharComando (comandoID_t id, char* comando, char* params){
 	}
 	case help:{
 		menuComandos (NULL);
+
 		//Volvemos al estado refrescar
 		fsm.estado = refrescar;
 		break;

@@ -43,9 +43,15 @@ extern "C" {
 
 /* Exported types ------------------------------------------------------------*/
 /* USER CODE BEGIN ET */
+//Enumeracion y estructura de los estados de la maquina
 typedef enum{
-	reproducirAudio,
-	accion,
+	audio1,
+	audio2,
+	audio3,
+	capitulo1,
+	capitulo2,
+	capitulo3,
+	mensaje,
 	Blinky,
 	IDLE
 }posiblesEstados;
@@ -55,6 +61,21 @@ typedef struct
 	posiblesEstados estado;
 }estadoActual;
 
+//ENumeracion y estructura de los posibles comandos
+typedef enum{
+	cap1, //Cambia el valor del Duty
+	cap2, //Muestra los ciclos utilizados por el MCU para mostrar el digito
+	cap3, //Muestra los ciclos utilizados por el MCU para mostrar el mensaje
+	help,			// Imprimir el menu de configuraciones
+	comandoDesconocido //El comando que se ingresó no es válido
+}comandoID_t;
+
+//Definimos la estructura donde se hace llamada a los posibles estados de la
+//enumeracion
+typedef struct{
+	const char* comando_str;
+	comandoID_t comando_id;
+}comando_t;
 /* USER CODE END ET */
 
 /* Exported constants --------------------------------------------------------*/
