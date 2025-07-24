@@ -1633,6 +1633,7 @@ void acciones1 (void){
 }
 //Funcion para las acciones del capitulo 2
 void acciones2 (void){
+	switch (contador){
 	case 0:{
 		  ssd1306_Fill(Black);
 		  ssd1306_DrawBitmap(0,0,contando,128,64,White);
@@ -1655,11 +1656,13 @@ void acciones2 (void){
 		__NOP();
 		break;
 	}
+	}
 
 }
 //Funcion para las acciones del capitulo 3
 void acciones3 (void){
-		case 40:{
+	switch (contador){
+	case 40:{
 		  ssd1306_Fill(Black);
 		  ssd1306_DrawBitmap(0,0,bravo,128,64,White);
 		  ssd1306_UpdateScreen();
@@ -1723,7 +1726,7 @@ void acciones3 (void){
 		__NOP();
 		break;
 	}
-
+	}
 }
 //Funcion para analizar el comando recibido
 void analizarComando (uint8_t* buffer, uint16_t size){
