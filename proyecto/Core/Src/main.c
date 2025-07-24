@@ -1070,12 +1070,8 @@ int main(void)
   dma_buffer_activo= bufferA;
   //Comenzamos la recepcion del comando
   HAL_UARTEx_ReceiveToIdle_DMA(&huart2, rx_buffer_a, UART_RX_BUFFER_SIZE);
-
   fsm.estado = mensaje;
-  //Inicializamos con la expresion deseada
-  ssd1306_Fill(Black);
-  ssd1306_DrawBitmap(0,0,delado,128,64,White);
-  ssd1306_UpdateScreen();
+
 
   /* USER CODE END 2 */
 
@@ -1506,24 +1502,19 @@ static void MX_GPIO_Init(void)
 //FUncion de maquina de estados
 void maquinaEstados (void){
 	switch (fsm.estado){
-	case audio1:{
-		  break;
-	}
-	case audio2:{
-		break;
-	}
-	case audio3:{
-		break;
-	}
 	case capitulo1:{
 		acciones1();
 		fsm.estado = IDLE;
 		break;
 	}
 	case capitulo2: {
+		acciones2();
+		fsm.estado = IDLE;
 		break;
 	}
 	case capitulo3:{
+		acciones2();
+		fsm.estado = IDLE;
 		break;
 	}
 	case mensaje:{
@@ -1596,6 +1587,13 @@ void menuComandos (char* params){
 //Funcion para asignar que expresion queremos en el tiempo determinado
 void acciones1 (void){
 	switch (contador){
+	case 0:{
+		  //Inicializamos con la expresion deseada
+		  ssd1306_Fill(Black);
+		  ssd1306_DrawBitmap(0,0,delado,128,64,White);
+		  ssd1306_UpdateScreen();
+		break;
+	}
 	case 6:{
 		  ssd1306_Fill(Black);
 		  ssd1306_DrawBitmap(0,0,enamoradisimo,128,64,White);
@@ -1626,11 +1624,26 @@ void acciones1 (void){
 		  ssd1306_UpdateScreen();
 		break;
 	}
+
+	default:{
+		__NOP();
+		break;
+	}
+	}
+}
+//Funcion para las acciones del capitulo 2
+void acciones2 (void){
+	case 0:{
+		  ssd1306_Fill(Black);
+		  ssd1306_DrawBitmap(0,0,contando,128,64,White);
+		  ssd1306_UpdateScreen();
+		break;
+	}
 	case 26:{
 		  ssd1306_Fill(Black);
 		  ssd1306_DrawBitmap(0,0,enojado,128,64,White);
 		  ssd1306_UpdateScreen();
-		break;
+	break;
 	}
 	case 28:{
 		  ssd1306_Fill(Black);
@@ -1638,7 +1651,15 @@ void acciones1 (void){
 		  ssd1306_UpdateScreen();
 		break;
 	}
-	case 40:{
+	default:{
+		__NOP();
+		break;
+	}
+
+}
+//Funcion para las acciones del capitulo 3
+void acciones3 (void){
+		case 40:{
 		  ssd1306_Fill(Black);
 		  ssd1306_DrawBitmap(0,0,bravo,128,64,White);
 		  ssd1306_UpdateScreen();
@@ -1700,15 +1721,8 @@ void acciones1 (void){
 	}
 	default:{
 		__NOP();
+		break;
 	}
-	}
-}
-//Funcion para las acciones del capitulo 2
-void acciones2 (void){
-
-}
-//Funcion para las acciones del capitulo 3
-void acciones3 (void){
 
 }
 //Funcion para analizar el comando recibido

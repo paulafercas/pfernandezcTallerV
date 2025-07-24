@@ -45,9 +45,6 @@ extern "C" {
 /* USER CODE BEGIN ET */
 //Enumeracion y estructura de los estados de la maquina
 typedef enum{
-	audio1,
-	audio2,
-	audio3,
 	capitulo1,
 	capitulo2,
 	capitulo3,
