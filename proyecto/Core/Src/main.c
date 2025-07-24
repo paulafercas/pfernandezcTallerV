@@ -49,8 +49,6 @@ TIM_HandleTypeDef htim5;
 TIM_HandleTypeDef htim9;
 
 UART_HandleTypeDef huart2;
-DMA_HandleTypeDef hdma_usart2_rx;
-DMA_HandleTypeDef hdma_usart2_tx;
 
 /* USER CODE BEGIN PV */
 //Inicializamos la variable a la cual vamos a gurdarle el estado que
@@ -947,53 +945,24 @@ const unsigned char guino [] = {
 #define MENU_BUFFER_SIZE 1150
 //Definimos la variable que nos indica el tamano de los buffer recibidos
 #define UART_RX_BUFFER_SIZE 64
-
-//Variable para contar los periodos del Timer3
-uint8_t contador=0;
-
-//Creamos la variable donde almacenaremos el menu inicial
-char menu_display_buffer[MENU_BUFFER_SIZE];
-
-//Creamos los buffer para definir los capitulos
-//Creamos los buffer a y b
-uint8_t rx_buffer_a [UART_RX_BUFFER_SIZE]={0};
-uint8_t rx_buffer_b [UART_RX_BUFFER_SIZE]={0};
-
-const comando_t tablaComandos[]={
-		{"1", 	cap1},
-		{"2", cap2},
-		{"2", cap3},
-		{"help", help},
+//Definimos el numero de capitulos posible
+#define NUM_OPCIONES 3
+char* opciones_menu[NUM_OPCIONES] = {
+    "Cap 1. Dos seres",
+    "Cap 2. La mar...",
+    "Cap 3. El origen"
 };
-//Guardamos el numero de comandos en una variable
-const int numeroComandos = sizeof (tablaComandos)/sizeof (comando_t);
+//Variable para contar los periodos del Timer3
+volatile uint8_t contador=0;
 
-//Creamos las variables donde se van a guardar los buffer utilizando
-//el metodo ping pong
-typedef enum{
-	bufferA,
-	bufferB
-}bufferActivo;
-
-//Creamos una estructura donde se almacena los datos correspondientes al
-//buffer activo
-typedef struct{
-	uint8_t* buffer;
-	uint16_t size;
-}DataPacket;
-
-//Inicializamos la estructura DataPacket con el buffer vacío y el tamano
-//igual a 0
-volatile DataPacket data_ready_packet ={.buffer= NULL, .size=0};
-//Inicializamos la variable del buffer activo con el buffer a
-volatile bufferActivo dma_buffer_activo = bufferA;
+//Variable para asignar la opcion actual de capitulo
+volatile uint8_t opcion_actual =0;
 
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
-static void MX_DMA_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_TIM2_Init(void);
 static void MX_I2C1_Init(void);
@@ -1008,13 +977,12 @@ void maquinaEstados (void);
 void acciones1 (void);
 void acciones2 (void);
 void acciones3 (void);
-//Funcion para analizar los comandos
-void analizarComando (uint8_t* buffer, uint16_t size);
-//Funcion para imrpimir el menu
-void menuComandos(char* params);
-comandoID_t encontrarComandoid (const char* comando_str);
-//Funcion para enviar el comando
-void despacharComando (comandoID_t id, char* comando);
+//Funcion para mostrar el menu en pantalla
+void mostrar_menu (void);
+//Funcion para cambiar la opcion_actual
+uint16_t cambioNumero (uint16_t numeroLocal);
+//Funcion para dar inicio al show
+void queComienceElShow (void);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -1050,7 +1018,6 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
-  MX_DMA_Init();
   MX_USART2_UART_Init();
   MX_TIM2_Init();
   MX_I2C1_Init();
@@ -1064,13 +1031,7 @@ int main(void)
   HAL_TIM_Base_Start_IT(&htim2);
   //Inicializamos la pantalla
   ssd1306_Init();
-  //Imprimimos el menu de comandos
-  menuComandos(menu_display_buffer);
-  //Inicializamos el buffer activo
-  dma_buffer_activo= bufferA;
-  //Comenzamos la recepcion del comando
-  HAL_UARTEx_ReceiveToIdle_DMA(&huart2, rx_buffer_a, UART_RX_BUFFER_SIZE);
-  fsm.estado = mensaje;
+  fsm.estado = menu;
 
 
   /* USER CODE END 2 */
@@ -1429,25 +1390,6 @@ static void MX_USART2_UART_Init(void)
 }
 
 /**
-  * Enable DMA controller clock
-  */
-static void MX_DMA_Init(void)
-{
-
-  /* DMA controller clock enable */
-  __HAL_RCC_DMA1_CLK_ENABLE();
-
-  /* DMA interrupt init */
-  /* DMA1_Stream5_IRQn interrupt configuration */
-  HAL_NVIC_SetPriority(DMA1_Stream5_IRQn, 0, 0);
-  HAL_NVIC_EnableIRQ(DMA1_Stream5_IRQn);
-  /* DMA1_Stream6_IRQn interrupt configuration */
-  HAL_NVIC_SetPriority(DMA1_Stream6_IRQn, 0, 0);
-  HAL_NVIC_EnableIRQ(DMA1_Stream6_IRQn);
-
-}
-
-/**
   * @brief GPIO Initialization Function
   * @param None
   * @retval None
@@ -1463,6 +1405,7 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOH_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
+  __HAL_RCC_GPIOD_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOC, enable_Pin|DIR_Pin, GPIO_PIN_RESET);
@@ -1484,13 +1427,28 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(blinky_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : finalIzquierdo_Pin finalDerecho_Pin */
-  GPIO_InitStruct.Pin = finalIzquierdo_Pin|finalDerecho_Pin;
+  /*Configure GPIO pins : finalIzquierdo_Pin switch_Pin finalDerecho_Pin */
+  GPIO_InitStruct.Pin = finalIzquierdo_Pin|switch_Pin|finalDerecho_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
+  /*Configure GPIO pin : DATA_Pin */
+  GPIO_InitStruct.Pin = DATA_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(DATA_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : clock_Pin */
+  GPIO_InitStruct.Pin = clock_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(clock_GPIO_Port, &GPIO_InitStruct);
+
   /* EXTI interrupt init*/
+  HAL_NVIC_SetPriority(EXTI2_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI2_IRQn);
+
   HAL_NVIC_SetPriority(EXTI9_5_IRQn, 0, 0);
   HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
 
@@ -1502,6 +1460,11 @@ static void MX_GPIO_Init(void)
 //FUncion de maquina de estados
 void maquinaEstados (void){
 	switch (fsm.estado){
+	case reproducirAudio:{
+		queComienceElShow();
+		fsm.estado = IDLE;
+		break;
+	}
 	case capitulo1:{
 		acciones1();
 		fsm.estado = IDLE;
@@ -1517,24 +1480,13 @@ void maquinaEstados (void){
 		fsm.estado = IDLE;
 		break;
 	}
-	case mensaje:{
-		//Nos seguramos de que el buffer tenga un tamano distinto de 0
-		  if (data_ready_packet.size >0){
-			  //Creamos una variable auxiliar donde guardamos el valor del buffer
-			  uint8_t* proc_buffer = 0;
-			  //Creamos una variable auxiliar donde guardamos el valor del tamano del buffer
-			  uint16_t proc_size=0;
-			  //Asignamos los valores correspondientes a cada variable
-			  proc_buffer = data_ready_packet.buffer;
-			  proc_size = data_ready_packet.size;
-
-			  //Borramos lo guardado en las variables globales para que no se acumulen los datos recibidos
-			  data_ready_packet.buffer = NULL;
-			  data_ready_packet.size =0;
-
-			  //Procesamos los datos usando estas copias locales de forma segura
-			  analizarComando(proc_buffer, proc_size);
-		  }
+	case menu:{
+		mostrar_menu();
+		break;
+	}
+	case cambio_opcion:{
+		opcion_actual = cambioNumero(opcion_actual);
+		fsm.estado = menu;
 		break;
 	}
 	case Blinky:{
@@ -1550,44 +1502,83 @@ void maquinaEstados (void){
 	}
 	}
 }
+//Funcion para mostrar menu
+void mostrar_menu(void) {
+    ssd1306_Fill(Black);
+	  ssd1306_SetCursor(0, 0);
+	  ssd1306_WriteString("Seleccione el cap", Font_7x10, White);
 
-//Funcion para imprimir el menu de comandos
-void menuComandos (char* params){
-	//Limpiamos el buffer
-	memset (menu_display_buffer, 0, MENU_BUFFER_SIZE);
-	//Creamos el string para el menu
-	int offset =0;
-	// Header
-	    offset += snprintf(menu_display_buffer + offset, MENU_BUFFER_SIZE - offset,
-	                       "| %-15s| %-65s| %-24s|\r\n", "Capitulo", "Descripcion", "Formato");
+    for (int i = 0; i < NUM_OPCIONES; i++) {
+        if (i == opcion_actual) {
+            ssd1306_SetCursor(0, (i+2) * 10);
+            ssd1306_WriteString(">", Font_6x8, White);
+        } else {
+            ssd1306_SetCursor(0, (i+2) * 10);
+            ssd1306_WriteString(" ", Font_6x8, White);
+        }
 
-	    // Comandos con sus respectivas descripciones
-	    offset += snprintf(menu_display_buffer + offset, MENU_BUFFER_SIZE - offset,
-	                       "| %-15s| %-65s| %-24s|\r\n", "1", "Cap 1: En el principio de todos los tiempos", "1");
-	    offset += snprintf(menu_display_buffer + offset, MENU_BUFFER_SIZE - offset,
-	                       "| %-15s| %-65s| %-24s|\r\n", "2", "Cap 2: La mar...", "2");
-	    offset += snprintf(menu_display_buffer + offset, MENU_BUFFER_SIZE - offset,
-	                       "| %-15s| %-65s| %-24s|\r\n", "3", "Cap 3: EL origen", "3");
-	    offset += snprintf(menu_display_buffer + offset, MENU_BUFFER_SIZE - offset,
-	                       "| %-15s| %-65s| %-24s|\r\n", "help", "Imprime el menu de capitulos", "help");
+        ssd1306_SetCursor(10, (i+2) * 10);
+        ssd1306_WriteString(opciones_menu[i], Font_6x8, White);
+    }
 
-
-	    // Transmitimos el menu a traves de la DMA
-	    //Nos aseguramos de que no estemos transmitiendo otro buffer a traves de la DMA
-	    if (huart2.gState == HAL_UART_STATE_READY) {
-	    	//Transmitimos el menu
-	        HAL_UART_Transmit_DMA(&huart2, (uint8_t*)menu_display_buffer, strlen(menu_display_buffer));
-	    } else {
-	        //Creamos un char donde almacenamos el mensaje de buffer ocupado
-	        char busy_msg[] = "UART ocupado. Intenta 'help'.\r\n";
-	        HAL_UART_Transmit_DMA(&huart2, (uint8_t*)busy_msg, strlen(busy_msg));
-	    }
-
+    ssd1306_UpdateScreen();
 }
+//Funcion para cambiar el numero de opcion_actual
+uint16_t cambioNumero (uint16_t numeroLocal){
+	//Creamos una variable en la cual guardamos el valor del pin
+	//donde está el DT
+	uint32_t valor_DT = 0;
+	//Cargamos el valor del pin en la variable
+	valor_DT = HAL_GPIO_ReadPin(DATA_GPIO_Port, DATA_Pin);
+	//Comparamos las posibles opciones
+	switch (valor_DT){
+	//Cuando el pin DT está en o
+	case 0: {
+		//Nos aseguramos de que el numeroDisplay no vaya a ser menor que cero
+		if (numeroLocal==0){
+			//Lo devolvemos a 4095
+			numeroLocal =3;
+			//Retornamos el valor numeroLocal
+			return numeroLocal;
+		}
+		else {
+			//Le restamos a numeroDisplay una unidad
+			numeroLocal --;
+			//Retornamos el valor numeroLocal
+			return numeroLocal;
+		}
+		break;
+
+	}
+
+	case 1: {
+		//Nos aseguramos de que el numero no vaya a ser mayor que 3
+		if (numeroLocal>=2){
+			//Devolvemos el valor de numeroDisplay a 0
+			numeroLocal=0;
+			//Retornamos el valor numeroLocal
+			return numeroLocal;
+		}
+		else {
+			//Le sumamos una unidad a la variable numeroDisplay
+			numeroLocal ++;
+			//Retornamos el valor numeroLocal
+			return numeroLocal;
+		}
+		break;
+	}
+	default:{
+		//Retornamos el valor numeroLocal
+		return numeroLocal;
+		break;
+	}
+	}
+}
+
 //Funcion para asignar que expresion queremos en el tiempo determinado
 void acciones1 (void){
 	switch (contador){
-	case 0:{
+	case 2:{
 		  //Inicializamos con la expresion deseada
 		  ssd1306_Fill(Black);
 		  ssd1306_DrawBitmap(0,0,delado,128,64,White);
@@ -1624,7 +1615,9 @@ void acciones1 (void){
 		  ssd1306_UpdateScreen();
 		break;
 	}
-
+	case 24:{
+		mostrar_menu();
+	}
 	default:{
 		__NOP();
 		break;
@@ -1634,22 +1627,33 @@ void acciones1 (void){
 //Funcion para las acciones del capitulo 2
 void acciones2 (void){
 	switch (contador){
-	case 0:{
+	case 2:{
+		  ssd1306_Fill(Black);
+		  ssd1306_DrawBitmap(0,0,enojado,128,64,White);
+		  ssd1306_UpdateScreen();
+		break;
+	}
+	case 5:{
+		  ssd1306_Fill(Black);
+		  ssd1306_DrawBitmap(0,0,enamoradito,128,64,White);
+		  ssd1306_UpdateScreen();
+		  break;
+	}
+	case 9:{
+		  ssd1306_Fill(Black);
+		  ssd1306_DrawBitmap(0,0,emocionado,128,64,White);
+		  ssd1306_UpdateScreen();
+		  break;
+	break;
+	}
+	case 13:{
 		  ssd1306_Fill(Black);
 		  ssd1306_DrawBitmap(0,0,contando,128,64,White);
 		  ssd1306_UpdateScreen();
 		break;
 	}
-	case 26:{
-		  ssd1306_Fill(Black);
-		  ssd1306_DrawBitmap(0,0,enojado,128,64,White);
-		  ssd1306_UpdateScreen();
-	break;
-	}
-	case 28:{
-		  ssd1306_Fill(Black);
-		  ssd1306_DrawBitmap(0,0,emocionado,128,64,White);
-		  ssd1306_UpdateScreen();
+	case 15:{
+		mostrar_menu();
 		break;
 	}
 	default:{
@@ -1662,64 +1666,68 @@ void acciones2 (void){
 //Funcion para las acciones del capitulo 3
 void acciones3 (void){
 	switch (contador){
-	case 40:{
+	case 1:{
 		  ssd1306_Fill(Black);
 		  ssd1306_DrawBitmap(0,0,bravo,128,64,White);
 		  ssd1306_UpdateScreen();
 		break;
 	}
-	case 48:{
+	case 9:{
 		  ssd1306_Fill(Black);
 		  ssd1306_DrawBitmap(0,0,desesperado,128,64,White);
 		  ssd1306_UpdateScreen();
 		break;
 	}
-	case 51:{
+	case 12:{
 		  ssd1306_Fill(Black);
 		  ssd1306_DrawBitmap(0,0,contando,128,64,White);
 		  ssd1306_UpdateScreen();
 		break;
 	}
-	case 58:{
+	case 19:{
 		  ssd1306_Fill(Black);
 		  ssd1306_DrawBitmap(0,0,gafas,128,64,White);
 		  ssd1306_UpdateScreen();
 		break;
 	}
-	case 62:{
+	case 23:{
 		  ssd1306_Fill(Black);
 		  ssd1306_DrawBitmap(0,0,oye,128,64,White);
 		  ssd1306_UpdateScreen();
 		break;
 	}
-	case 65:{
+	case 26:{
 		  ssd1306_Fill(Black);
 		  ssd1306_DrawBitmap(0,0,delado,128,64,White);
 		  ssd1306_UpdateScreen();
 		break;
 	}
-	case 69:{
+	case 30:{
 		  ssd1306_Fill(Black);
 		  ssd1306_DrawBitmap(0,0,gafas,128,64,White);
 		  ssd1306_UpdateScreen();
 		break;
 	}
-	case 71:{
+	case 32:{
 		  ssd1306_Fill(Black);
 		  ssd1306_DrawBitmap(0,0,contando,128,64,White);
 		  ssd1306_UpdateScreen();
 		break;
 	}
-	case 74:{
+	case 35:{
 		  ssd1306_Fill(Black);
 		  ssd1306_DrawBitmap(0,0,triste,128,64,White);
 		  ssd1306_UpdateScreen();
 		break;
 	}
-	case 78:{
+	case 42:{
 		  ssd1306_Fill(Black);
 		  ssd1306_DrawBitmap(0,0,guino,128,64,White);
 		  ssd1306_UpdateScreen();
+		break;
+	}
+	case 44:{
+		mostrar_menu();
 		break;
 	}
 	default:{
@@ -1728,46 +1736,11 @@ void acciones3 (void){
 	}
 	}
 }
-//Funcion para analizar el comando recibido
-void analizarComando (uint8_t* buffer, uint16_t size){
-	//Nos preguntamos si el tamano de la entrada es mayor al asignado inicialmente
-	if (size >= UART_RX_BUFFER_SIZE){
-		//Nos aseguramos de que el ultimo caracter sea el nulo
-		buffer [UART_RX_BUFFER_SIZE-1]='\0';
-	} else{
-		//Nos aseguramos de que el ultimo caracter sea nulo
-		buffer[size]='\0';
-	}
-	//Usamos strok para extraer el comando y los parametros
-	//obtenemos el comando
-	char* comando_str = strtok ((char*)buffer, " ");
-	//Preguntamos si el comando esta vacio no hacemos nada
-	if (comando_str==NULL){
-		return;
-	}
 
-	//Debemos identificar el comando que estamos utilizando
-	comandoID_t id =encontrarComandoid (comando_str);
-	//Enviamos el comando a la maquina de estados
-	despacharComando(id, comando_str);
-}
-//Funcion para encontrar el comando recibido
-comandoID_t encontrarComandoid (const char* comando_str){
-	for (int i =0; i< numeroComandos; i++){
-		//Utilizamos la funcion strcmp que compara bit a bit el comando
-		//ingresado con cada uno de los disponibles en la tabla
-		if (strcmp (comando_str, tablaComandos[i].comando_str)==0){
-			return tablaComandos[i].comando_id;
-		}
-	}
-	//Si no coincide con ninguno entonces se retorna el estado de
-	//comandoDesconocido
-	return comandoDesconocido;
-}
 //Funcion para enviar el comando
-void despacharComando (comandoID_t id, char* comando){
-	switch (id){
-	case cap1:{
+void queComienceElShow (void){
+	switch (opcion_actual){
+	case 0:{
 		HAL_TIM_Base_Start_IT(&htim3);
 		//Guardamos la palabra CAP1 para reproducir el audio
 		  char msg[] = "CAP1\n";
@@ -1779,7 +1752,7 @@ void despacharComando (comandoID_t id, char* comando){
 		  }
 		break;
 	}
-	case cap2:{
+	case 1:{
 		HAL_TIM_Base_Start_IT(&htim5);
 		//Guardamos la palabra CAP2 para reproducir el audio
 		  char msg[] = "CAP2\n";
@@ -1791,7 +1764,7 @@ void despacharComando (comandoID_t id, char* comando){
 		  }
 		break;
 	}
-	case cap3:{
+	case 2:{
 		 HAL_TIM_Base_Start_IT(&htim9);
 		//Guardamos la palabra CAP3 para reproducir el audio
 		  char msg[] = "CAP3\n";
@@ -1809,42 +1782,20 @@ void despacharComando (comandoID_t id, char* comando){
 	}
 }
 
-//Callback para el Receive del USART
-//Llamamos al callback para la recepcion del comando
-void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size){
-	//Nos aseguramos de que estamos usando el USART2
-	if (huart->Instance ==USART2){
-		//Preguntamos si estamos en el bufferA
-		if (dma_buffer_activo==bufferA){
-			//Guardamos el buffer recibido en el buffer_a
-			data_ready_packet.buffer = rx_buffer_a;
-			//Guardamos el tamano del buffer
-			data_ready_packet.size = Size;
-			//Pasamos al buffer B
-			dma_buffer_activo= bufferB;
-			HAL_UARTEx_ReceiveToIdle_DMA(&huart2, rx_buffer_b, UART_RX_BUFFER_SIZE);
-		}
-		//Si el buffer se encuentra en el bufferb
-		else {
-			//Guardamos el buffer recibido en el buffer_a
-			data_ready_packet.buffer = rx_buffer_b;
-			//Guardamos el tamano del buffer
-			data_ready_packet.size = Size;
-			//Pasamos al buffer A
-			dma_buffer_activo= bufferA;
-			HAL_UARTEx_ReceiveToIdle_DMA(&huart2, rx_buffer_a, UART_RX_BUFFER_SIZE);
-		}
-		//Cambiamos de estado a recibir mensaje
-		fsm.estado = mensaje;
-	}
-}
 //Callback para el EXTI
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
-	if (GPIO_Pin == GPIO_PIN_5){
+	if (GPIO_Pin == GPIO_PIN_2){
+		fsm.estado = cambio_opcion;
+	}
+	else if (GPIO_Pin == GPIO_PIN_5){
 		//Apagamos el PWM
 		HAL_TIM_Base_Stop(&htim4);
 	}
 	else if (GPIO_Pin == GPIO_PIN_6){
+		fsm.estado = reproducirAudio;
+
+	}
+	else if (GPIO_Pin == GPIO_PIN_7){
 		//Apagamos el PWM
 		HAL_TIM_Base_Stop(&htim4);
 	}

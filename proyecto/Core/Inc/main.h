@@ -45,10 +45,12 @@ extern "C" {
 /* USER CODE BEGIN ET */
 //Enumeracion y estructura de los estados de la maquina
 typedef enum{
+	reproducirAudio,
 	capitulo1,
 	capitulo2,
 	capitulo3,
-	mensaje,
+	menu,
+	cambio_opcion,
 	Blinky,
 	IDLE
 }posiblesEstados;
@@ -60,11 +62,9 @@ typedef struct
 
 //ENumeracion y estructura de los posibles comandos
 typedef enum{
-	cap1, //Cambia el valor del Duty
-	cap2, //Muestra los ciclos utilizados por el MCU para mostrar el digito
-	cap3, //Muestra los ciclos utilizados por el MCU para mostrar el mensaje
-	help,			// Imprimir el menu de configuraciones
-	comandoDesconocido //El comando que se ingresó no es válido
+	cap1,
+	cap2,
+	cap3,
 }comandoID_t;
 
 //Definimos la estructura donde se hace llamada a los posibles estados de la
@@ -108,13 +108,21 @@ void Error_Handler(void);
 #define finalIzquierdo_Pin GPIO_PIN_5
 #define finalIzquierdo_GPIO_Port GPIOA
 #define finalIzquierdo_EXTI_IRQn EXTI9_5_IRQn
-#define finalDerecho_Pin GPIO_PIN_6
+#define switch_Pin GPIO_PIN_6
+#define switch_GPIO_Port GPIOA
+#define switch_EXTI_IRQn EXTI9_5_IRQn
+#define finalDerecho_Pin GPIO_PIN_7
 #define finalDerecho_GPIO_Port GPIOA
 #define finalDerecho_EXTI_IRQn EXTI9_5_IRQn
+#define DATA_Pin GPIO_PIN_12
+#define DATA_GPIO_Port GPIOB
 #define TMS_Pin GPIO_PIN_13
 #define TMS_GPIO_Port GPIOA
 #define TCK_Pin GPIO_PIN_14
 #define TCK_GPIO_Port GPIOA
+#define clock_Pin GPIO_PIN_2
+#define clock_GPIO_Port GPIOD
+#define clock_EXTI_IRQn EXTI2_IRQn
 #define SWO_Pin GPIO_PIN_3
 #define SWO_GPIO_Port GPIOB
 #define STEP_Pin GPIO_PIN_7
