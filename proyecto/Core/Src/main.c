@@ -1031,6 +1031,12 @@ int main(void)
   HAL_TIM_Base_Start_IT(&htim2);
   //Inicializamos la pantalla
   ssd1306_Init();
+  //Inicializamos el timer y su respectivo PWM para el motor
+  HAL_TIM_Base_Start(&htim4);
+  HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_2);
+  //Inicializamos el enable en 1
+  HAL_GPIO_WritePin(enable_GPIO_Port, enable_Pin, GPIO_PIN_RESET);
+
   fsm.estado = menu;
 
 
@@ -1476,7 +1482,7 @@ void maquinaEstados (void){
 		break;
 	}
 	case capitulo3:{
-		acciones2();
+		acciones3();
 		fsm.estado = IDLE;
 		break;
 	}
@@ -1585,6 +1591,11 @@ void acciones1 (void){
 		  ssd1306_UpdateScreen();
 		break;
 	}
+	case 3:{
+		  HAL_GPIO_WritePin(DIR_GPIO_Port, DIR_Pin, GPIO_PIN_SET);
+		  HAL_GPIO_WritePin(enable_GPIO_Port, enable_Pin, GPIO_PIN_RESET);
+		  break;
+	}
 	case 6:{
 		  ssd1306_Fill(Black);
 		  ssd1306_DrawBitmap(0,0,enamoradisimo,128,64,White);
@@ -1666,13 +1677,13 @@ void acciones2 (void){
 //Funcion para las acciones del capitulo 3
 void acciones3 (void){
 	switch (contador){
-	case 1:{
+	case 2:{
 		  ssd1306_Fill(Black);
 		  ssd1306_DrawBitmap(0,0,bravo,128,64,White);
 		  ssd1306_UpdateScreen();
 		break;
 	}
-	case 9:{
+	case 10:{
 		  ssd1306_Fill(Black);
 		  ssd1306_DrawBitmap(0,0,desesperado,128,64,White);
 		  ssd1306_UpdateScreen();
@@ -1684,19 +1695,25 @@ void acciones3 (void){
 		  ssd1306_UpdateScreen();
 		break;
 	}
-	case 19:{
+	case 15:{
+		  ssd1306_Fill(Black);
+		  ssd1306_DrawBitmap(0,0,enamoradito,128,64,White);
+		  ssd1306_UpdateScreen();
+		break;
+	}
+	case 21:{
 		  ssd1306_Fill(Black);
 		  ssd1306_DrawBitmap(0,0,gafas,128,64,White);
 		  ssd1306_UpdateScreen();
 		break;
 	}
-	case 23:{
+	case 24:{
 		  ssd1306_Fill(Black);
 		  ssd1306_DrawBitmap(0,0,oye,128,64,White);
 		  ssd1306_UpdateScreen();
 		break;
 	}
-	case 26:{
+	case 28:{
 		  ssd1306_Fill(Black);
 		  ssd1306_DrawBitmap(0,0,delado,128,64,White);
 		  ssd1306_UpdateScreen();
@@ -1714,7 +1731,7 @@ void acciones3 (void){
 		  ssd1306_UpdateScreen();
 		break;
 	}
-	case 35:{
+	case 36:{
 		  ssd1306_Fill(Black);
 		  ssd1306_DrawBitmap(0,0,triste,128,64,White);
 		  ssd1306_UpdateScreen();
@@ -1726,7 +1743,7 @@ void acciones3 (void){
 		  ssd1306_UpdateScreen();
 		break;
 	}
-	case 44:{
+	case 43:{
 		mostrar_menu();
 		break;
 	}
@@ -1744,36 +1761,26 @@ void queComienceElShow (void){
 		HAL_TIM_Base_Start_IT(&htim3);
 		//Guardamos la palabra CAP1 para reproducir el audio
 		  char msg[] = "CAP1\n";
-		  //Nos aseguramos de que el pin 13 no este ocupado con otra operacion
-		  if (HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13) == GPIO_PIN_RESET) {
-			  //Transmitimos el audio
-		      HAL_UART_Transmit(&huart2, (uint8_t*)msg, strlen(msg), HAL_MAX_DELAY);
-		      HAL_Delay(500);
-		  }
+		  //Transmitimos el audio
+		  HAL_UART_Transmit(&huart2, (uint8_t*)msg, strlen(msg), HAL_MAX_DELAY);
+		  HAL_Delay(500);
 		break;
 	}
 	case 1:{
 		HAL_TIM_Base_Start_IT(&htim5);
 		//Guardamos la palabra CAP2 para reproducir el audio
 		  char msg[] = "CAP2\n";
-		  //Nos aseguramos de que el pin 13 no este ocupado con otra operacion
-		  if (HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13) == GPIO_PIN_RESET) {
-			  //Transmitimos el audio
-		      HAL_UART_Transmit(&huart2, (uint8_t*)msg, strlen(msg), HAL_MAX_DELAY);
-		      HAL_Delay(500);
-		  }
+		  //Transmitimos el audio
+		  HAL_UART_Transmit(&huart2, (uint8_t*)msg, strlen(msg), HAL_MAX_DELAY);
+		  HAL_Delay(500);
 		break;
 	}
 	case 2:{
 		 HAL_TIM_Base_Start_IT(&htim9);
 		//Guardamos la palabra CAP3 para reproducir el audio
 		  char msg[] = "CAP3\n";
-		  //Nos aseguramos de que el pin 13 no este ocupado con otra operacion
-		  if (HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13) == GPIO_PIN_RESET) {
-			  //Transmitimos el audio
-		      HAL_UART_Transmit(&huart2, (uint8_t*)msg, strlen(msg), HAL_MAX_DELAY);
-		      HAL_Delay(500);
-		  }
+		  HAL_UART_Transmit(&huart2, (uint8_t*)msg, strlen(msg), HAL_MAX_DELAY);
+		  HAL_Delay(500);
 		break;
 	}
 	default:{
@@ -1788,16 +1795,16 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 		fsm.estado = cambio_opcion;
 	}
 	else if (GPIO_Pin == GPIO_PIN_5){
-		//Apagamos el PWM
-		HAL_TIM_Base_Stop(&htim4);
+		//Apagamos el enable
+		HAL_GPIO_WritePin(enable_GPIO_Port, enable_Pin, GPIO_PIN_SET);
 	}
 	else if (GPIO_Pin == GPIO_PIN_6){
 		fsm.estado = reproducirAudio;
 
 	}
 	else if (GPIO_Pin == GPIO_PIN_7){
-		//Apagamos el PWM
-		HAL_TIM_Base_Stop(&htim4);
+		//Apagamos el enable
+		HAL_GPIO_WritePin(enable_GPIO_Port, enable_Pin, GPIO_PIN_SET);
 	}
 }
 //Llamamos el callback para el blinky
