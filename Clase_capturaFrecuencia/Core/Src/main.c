@@ -44,34 +44,42 @@
 /* Private variables ---------------------------------------------------------*/
 TIM_HandleTypeDef htim2;
 TIM_HandleTypeDef htim3;
+TIM_HandleTypeDef htim5;
+DMA_HandleTypeDef hdma_tim5_ch2;
 
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
-//Bandera para reconocer entre la primera captura y la segunda
-volatile uint8_t flagCapture =0;
-//Variable donde almacenamos la primera captura
-volatile int32_t firstCapture =0;
-//Variable donde almacenamos la segunda captura
-volatile int32_t secondCapture =0;
-//Numero de Ticks en la señal
-volatile int32_t elapsedTicks =0;
-//Counter para las interrupciones del timer
-volatile int32_t counterIT =0;
-volatile uint8_t enableMsg=0;
+#define NUM_LEDS        60
+#define BITS_PER_LED    24
+#define RESET_SLOTS     50
+#define LED_BUFFER_SIZE ((NUM_LEDS * BITS_PER_LED) + RESET_SLOTS)
 
-float frecuencia =0;
-uint8_t bufferMsg[64]={0};
+#define WS2812_FREQ     800000
+#define TIMER_FREQ      72000000
+#define TIM_PERIOD      (TIMER_FREQ / WS2812_FREQ)
+
+#define T1H             (TIM_PERIOD * 2 / 3)  // Lógica '1'
+#define T0H             (TIM_PERIOD * 1 / 3)  // Lógica '0'
+
+extern TIM_HandleTypeDef htim5;
+
+uint16_t pwmData[LED_BUFFER_SIZE];
+
 
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
+static void MX_DMA_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_TIM2_Init(void);
 static void MX_TIM3_Init(void);
+static void MX_TIM5_Init(void);
 /* USER CODE BEGIN PFP */
+void set_led_color(uint8_t r, uint8_t g, uint8_t b, int led_index);
+void show_leds(void);
 
 /* USER CODE END PFP */
 
@@ -108,29 +116,38 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_DMA_Init();
   MX_USART2_UART_Init();
   MX_TIM2_Init();
   MX_TIM3_Init();
+  MX_TIM5_Init();
   /* USER CODE BEGIN 2 */
   HAL_TIM_Base_Start_IT(&htim2);
-  HAL_TIM_IC_Start_IT(&htim3, TIM_CHANNEL_1);
-  HAL_TIM_Base_Start_IT(&htim3);
+  HAL_TIM_Base_Start(&htim5);
+  HAL_TIM_PWM_Start(&htim5, TIM_CHANNEL_2);
+
+  // Ejemplo: alternar colores en 60 LEDs
+    for (int i = 0; i < NUM_LEDS; i++) {
+        if (i % 3 == 0)
+            set_led_color(255, 0, 0, i);  // Rojo
+        else if (i % 3 == 1)
+            set_led_color(0, 255, 0, i);  // Verde
+        else
+            set_led_color(0, 0, 255, i);  // Azul
+    }
+
+    show_leds();
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+	  HAL_Delay(1000);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-	  if (enableMsg==4){
-		  frecuencia = 160000/elapsedTicks;
-		  sprintf((char*)bufferMsg, "Frec =%,2f Hz", frecuencia);
-		  HAL_UART_Transmit(&huart2, bufferMsg, strlen((char*)bufferMsg),2000);
-		  enableMsg =0;
 
-	  }
   }
   /* USER CODE END 3 */
 }
@@ -240,7 +257,7 @@ static void MX_TIM3_Init(void)
 
   TIM_ClockConfigTypeDef sClockSourceConfig = {0};
   TIM_MasterConfigTypeDef sMasterConfig = {0};
-  TIM_IC_InitTypeDef sConfigIC = {0};
+  TIM_OC_InitTypeDef sConfigOC = {0};
 
   /* USER CODE BEGIN TIM3_Init 1 */
 
@@ -260,7 +277,7 @@ static void MX_TIM3_Init(void)
   {
     Error_Handler();
   }
-  if (HAL_TIM_IC_Init(&htim3) != HAL_OK)
+  if (HAL_TIM_PWM_Init(&htim3) != HAL_OK)
   {
     Error_Handler();
   }
@@ -270,17 +287,77 @@ static void MX_TIM3_Init(void)
   {
     Error_Handler();
   }
-  sConfigIC.ICPolarity = TIM_INPUTCHANNELPOLARITY_RISING;
-  sConfigIC.ICSelection = TIM_ICSELECTION_DIRECTTI;
-  sConfigIC.ICPrescaler = TIM_ICPSC_DIV1;
-  sConfigIC.ICFilter = 0;
-  if (HAL_TIM_IC_ConfigChannel(&htim3, &sConfigIC, TIM_CHANNEL_1) != HAL_OK)
+  sConfigOC.OCMode = TIM_OCMODE_PWM1;
+  sConfigOC.Pulse = 0;
+  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+  if (HAL_TIM_PWM_ConfigChannel(&htim3, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
   {
     Error_Handler();
   }
   /* USER CODE BEGIN TIM3_Init 2 */
 
   /* USER CODE END TIM3_Init 2 */
+  HAL_TIM_MspPostInit(&htim3);
+
+}
+
+/**
+  * @brief TIM5 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM5_Init(void)
+{
+
+  /* USER CODE BEGIN TIM5_Init 0 */
+
+  /* USER CODE END TIM5_Init 0 */
+
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+  TIM_OC_InitTypeDef sConfigOC = {0};
+
+  /* USER CODE BEGIN TIM5_Init 1 */
+
+  /* USER CODE END TIM5_Init 1 */
+  htim5.Instance = TIM5;
+  htim5.Init.Prescaler = 0;
+  htim5.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim5.Init.Period = 45;
+  htim5.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim5.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim5) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim5, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_TIM_PWM_Init(&htim5) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim5, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sConfigOC.OCMode = TIM_OCMODE_PWM1;
+  sConfigOC.Pulse = 40;
+  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+  if (HAL_TIM_PWM_ConfigChannel(&htim5, &sConfigOC, TIM_CHANNEL_2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM5_Init 2 */
+
+  /* USER CODE END TIM5_Init 2 */
+  HAL_TIM_MspPostInit(&htim5);
 
 }
 
@@ -314,6 +391,22 @@ static void MX_USART2_UART_Init(void)
   /* USER CODE BEGIN USART2_Init 2 */
 
   /* USER CODE END USART2_Init 2 */
+
+}
+
+/**
+  * Enable DMA controller clock
+  */
+static void MX_DMA_Init(void)
+{
+
+  /* DMA controller clock enable */
+  __HAL_RCC_DMA1_CLK_ENABLE();
+
+  /* DMA interrupt init */
+  /* DMA1_Stream4_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Stream4_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Stream4_IRQn);
 
 }
 
@@ -358,31 +451,34 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+void set_led_color(uint8_t r, uint8_t g, uint8_t b, int led_index) {
+    uint32_t color = (g << 16) | (r << 8) | b;
+
+    for (int i = 0; i < BITS_PER_LED; i++) {
+        if (color & (1 << (23 - i))) {
+            pwmData[led_index * BITS_PER_LED + i] = T1H;
+        } else {
+            pwmData[led_index * BITS_PER_LED + i] = T0H;
+        }
+    }
+}
+
+// Enviar el buffer por DMA
+void show_leds(void) {
+    for (int i = NUM_LEDS * BITS_PER_LED; i < LED_BUFFER_SIZE; i++) {
+        pwmData[i] = 0; // Pulso bajo para reset
+    }
+
+    HAL_TIM_PWM_Start_DMA(&htim5, TIM_CHANNEL_2, (uint32_t *)pwmData, LED_BUFFER_SIZE);
+    HAL_Delay(1); // Tiempo mínimo de reset
+}
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 	if (htim->Instance ==TIM2){
 		//Encendemos o apagamos el led
 		HAL_GPIO_TogglePin(Blinky_GPIO_Port, Blinky_Pin);
 	}
-	if (htim->Instance ==TIM3){
-		counterIT ++;
-	}
 }
 
-void HAL_TIM_IC_CaptureCallback (TIM_HandleTypeDef *htim){
-	if (htim->Instance ==TIM3){
-		if (flagCapture ==1){
-			firstCapture = TIM3->CR1;
-			counterIT =0;
-		}
-		if (flagCapture==2){
-			secondCapture = TIM3->CR1;
-			elapsedTicks = (secondCapture-firstCapture)+(counterIT*65535);
-			flagCapture =0;
-			__NOP();
-		}
-		flagCapture++;
-	}
-}
 /* USER CODE END 4 */
 
 /**

@@ -47,6 +47,7 @@ TIM_HandleTypeDef htim3;
 TIM_HandleTypeDef htim4;
 TIM_HandleTypeDef htim5;
 TIM_HandleTypeDef htim9;
+TIM_HandleTypeDef htim10;
 
 UART_HandleTypeDef huart2;
 
@@ -970,6 +971,7 @@ static void MX_TIM3_Init(void);
 static void MX_TIM4_Init(void);
 static void MX_TIM5_Init(void);
 static void MX_TIM9_Init(void);
+static void MX_TIM10_Init(void);
 /* USER CODE BEGIN PFP */
 //Funcion de maquina de estados
 void maquinaEstados (void);
@@ -1025,18 +1027,16 @@ int main(void)
   MX_TIM4_Init();
   MX_TIM5_Init();
   MX_TIM9_Init();
+  MX_TIM10_Init();
   /* USER CODE BEGIN 2 */
   //Inicializamos los timers y sus interrupciones
-  HAL_TIM_Base_Start(&htim4); //Sin interrupcion
   HAL_TIM_Base_Start_IT(&htim2);
   //Inicializamos la pantalla
   ssd1306_Init();
   //Inicializamos el timer y su respectivo PWM para el motor
+  HAL_GPIO_WritePin(enable_GPIO_Port, enable_Pin, GPIO_PIN_RESET);
   HAL_TIM_Base_Start(&htim4);
   HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_2);
-  //Inicializamos el enable en 1
-  HAL_GPIO_WritePin(enable_GPIO_Port, enable_Pin, GPIO_PIN_RESET);
-
   fsm.estado = menu;
 
 
@@ -1363,6 +1363,37 @@ static void MX_TIM9_Init(void)
 }
 
 /**
+  * @brief TIM10 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM10_Init(void)
+{
+
+  /* USER CODE BEGIN TIM10_Init 0 */
+
+  /* USER CODE END TIM10_Init 0 */
+
+  /* USER CODE BEGIN TIM10_Init 1 */
+
+  /* USER CODE END TIM10_Init 1 */
+  htim10.Instance = TIM10;
+  htim10.Init.Prescaler = 16000;
+  htim10.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim10.Init.Period = 2000;
+  htim10.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim10.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim10) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM10_Init 2 */
+
+  /* USER CODE END TIM10_Init 2 */
+
+}
+
+/**
   * @brief USART2 Initialization Function
   * @param None
   * @retval None
@@ -1495,6 +1526,11 @@ void maquinaEstados (void){
 		fsm.estado = menu;
 		break;
 	}
+	case apagarMotor:{
+		  HAL_GPIO_WritePin(enable_GPIO_Port, enable_Pin, GPIO_PIN_SET);
+		  HAL_TIM_Base_Stop_IT(&htim10);
+		  fsm.estado = IDLE;
+	}
 	case Blinky:{
     	HAL_GPIO_TogglePin(blinky_GPIO_Port, blinky_Pin);
     	fsm.estado = IDLE;
@@ -1543,7 +1579,7 @@ uint16_t cambioNumero (uint16_t numeroLocal){
 		//Nos aseguramos de que el numeroDisplay no vaya a ser menor que cero
 		if (numeroLocal==0){
 			//Lo devolvemos a 4095
-			numeroLocal =3;
+			numeroLocal =2;
 			//Retornamos el valor numeroLocal
 			return numeroLocal;
 		}
@@ -1594,6 +1630,13 @@ void acciones1 (void){
 	case 3:{
 		  HAL_GPIO_WritePin(DIR_GPIO_Port, DIR_Pin, GPIO_PIN_SET);
 		  HAL_GPIO_WritePin(enable_GPIO_Port, enable_Pin, GPIO_PIN_RESET);
+		  HAL_TIM_Base_Start_IT(&htim10);
+		  break;
+	}
+	case 4:{
+		  HAL_GPIO_WritePin(DIR_GPIO_Port, DIR_Pin, GPIO_PIN_RESET);
+		  HAL_GPIO_WritePin(enable_GPIO_Port, enable_Pin, GPIO_PIN_RESET);
+		  HAL_TIM_Base_Start_IT(&htim10);
 		  break;
 	}
 	case 6:{
@@ -1627,6 +1670,8 @@ void acciones1 (void){
 		break;
 	}
 	case 24:{
+		HAL_TIM_Base_Stop_IT(&htim3);
+		contador =0;
 		mostrar_menu();
 	}
 	default:{
@@ -1664,6 +1709,8 @@ void acciones2 (void){
 		break;
 	}
 	case 15:{
+		HAL_TIM_Base_Stop_IT(&htim5);
+		contador =0;
 		mostrar_menu();
 		break;
 	}
@@ -1744,6 +1791,8 @@ void acciones3 (void){
 		break;
 	}
 	case 43:{
+		HAL_TIM_Base_Stop_IT(&htim9);
+		contador =0;
 		mostrar_menu();
 		break;
 	}
@@ -1825,6 +1874,9 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
     else if (htim -> Instance ==TIM9){
     	contador ++;
     	fsm.estado = capitulo3;
+    }
+    else if (htim-> Instance == TIM10){
+    	fsm.estado = apagarMotor;
     }
 }
 /* USER CODE END 4 */

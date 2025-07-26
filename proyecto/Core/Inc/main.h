@@ -51,6 +51,7 @@ typedef enum{
 	capitulo3,
 	menu,
 	cambio_opcion,
+	apagarMotor,
 	Blinky,
 	IDLE
 }posiblesEstados;
