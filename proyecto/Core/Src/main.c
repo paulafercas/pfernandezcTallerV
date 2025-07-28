@@ -1646,14 +1646,14 @@ void acciones1 (void){
 		break;
 	}
 	case 3:{
-		  HAL_GPIO_WritePin(DIR_GPIO_Port, DIR_Pin, GPIO_PIN_SET);
+		  HAL_GPIO_TogglePin(DIR_GPIO_Port, DIR_Pin);
 		  HAL_GPIO_WritePin(enable_GPIO_Port, enable_Pin, GPIO_PIN_RESET);
 		  HAL_TIM_PWM_Start(&htim4,TIM_CHANNEL_2);
 		  HAL_TIM_Base_Start_IT(&htim10);
 		  break;
 	}
 	case 4:{
-		  HAL_GPIO_WritePin(DIR_GPIO_Port, DIR_Pin, GPIO_PIN_RESET);
+		  HAL_GPIO_TogglePin(DIR_GPIO_Port, DIR_Pin);
 		  HAL_GPIO_WritePin(enable_GPIO_Port, enable_Pin, GPIO_PIN_RESET);
 		  HAL_TIM_PWM_Start(&htim4,TIM_CHANNEL_2);
 		  HAL_TIM_Base_Start_IT(&htim10);
@@ -1666,7 +1666,7 @@ void acciones1 (void){
 		break;
 	}
 	case 8:{
-		  HAL_GPIO_WritePin(DIR_GPIO_Port, DIR_Pin, GPIO_PIN_SET);
+		  HAL_GPIO_TogglePin(DIR_GPIO_Port, DIR_Pin);
 		  HAL_GPIO_WritePin(enable_GPIO_Port, enable_Pin, GPIO_PIN_RESET);
 		  HAL_TIM_PWM_Start(&htim4,TIM_CHANNEL_2);
 		  HAL_TIM_Base_Start_IT(&htim10);
@@ -1679,7 +1679,7 @@ void acciones1 (void){
 		break;
 	}
 	case 12:{
-		  HAL_GPIO_WritePin(DIR_GPIO_Port, DIR_Pin, GPIO_PIN_RESET);
+		  HAL_GPIO_TogglePin(DIR_GPIO_Port, DIR_Pin);
 		  HAL_GPIO_WritePin(enable_GPIO_Port, enable_Pin, GPIO_PIN_RESET);
 		  HAL_TIM_PWM_Start(&htim4,TIM_CHANNEL_2);
 		  HAL_TIM_Base_Start_IT(&htim10);
@@ -1704,7 +1704,7 @@ void acciones1 (void){
 		break;
 	}
 	case 21:{
-		  HAL_GPIO_WritePin(DIR_GPIO_Port, DIR_Pin, GPIO_PIN_SET);
+		  HAL_GPIO_TogglePin(DIR_GPIO_Port, DIR_Pin);
 		  HAL_GPIO_WritePin(enable_GPIO_Port, enable_Pin, GPIO_PIN_RESET);
 		  HAL_TIM_PWM_Start(&htim4,TIM_CHANNEL_2);
 		  HAL_TIM_Base_Start_IT(&htim10);
