@@ -61,6 +61,8 @@ void Error_Handler(void);
 /* Private defines -----------------------------------------------------------*/
 #define Blinky_Pin GPIO_PIN_1
 #define Blinky_GPIO_Port GPIOH
+#define leds_Pin GPIO_PIN_1
+#define leds_GPIO_Port GPIOA
 #define USART_TX_Pin GPIO_PIN_2
 #define USART_TX_GPIO_Port GPIOA
 #define USART_RX_Pin GPIO_PIN_3

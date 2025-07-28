@@ -1034,10 +1034,12 @@ int main(void)
   //Inicializamos la pantalla
   ssd1306_Init();
   //Inicializamos el timer y su respectivo PWM para el motor
-  HAL_GPIO_WritePin(enable_GPIO_Port, enable_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(enable_GPIO_Port, enable_Pin, GPIO_PIN_SET);
   HAL_TIM_Base_Start(&htim4);
   HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_2);
   fsm.estado = menu;
+  HAL_TIM_PWM_Stop(&htim4, TIM_CHANNEL_2);
+
 
 
   /* USER CODE END 2 */
@@ -1189,6 +1191,7 @@ static void MX_TIM3_Init(void)
 
   TIM_ClockConfigTypeDef sClockSourceConfig = {0};
   TIM_MasterConfigTypeDef sMasterConfig = {0};
+  TIM_OC_InitTypeDef sConfigOC = {0};
 
   /* USER CODE BEGIN TIM3_Init 1 */
 
@@ -1208,15 +1211,28 @@ static void MX_TIM3_Init(void)
   {
     Error_Handler();
   }
+  if (HAL_TIM_PWM_Init(&htim3) != HAL_OK)
+  {
+    Error_Handler();
+  }
   sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
   sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
   if (HAL_TIMEx_MasterConfigSynchronization(&htim3, &sMasterConfig) != HAL_OK)
   {
     Error_Handler();
   }
+  sConfigOC.OCMode = TIM_OCMODE_PWM1;
+  sConfigOC.Pulse = 0;
+  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+  if (HAL_TIM_PWM_ConfigChannel(&htim3, &sConfigOC, TIM_CHANNEL_4) != HAL_OK)
+  {
+    Error_Handler();
+  }
   /* USER CODE BEGIN TIM3_Init 2 */
 
   /* USER CODE END TIM3_Init 2 */
+  HAL_TIM_MspPostInit(&htim3);
 
 }
 
@@ -1240,9 +1256,9 @@ static void MX_TIM4_Init(void)
 
   /* USER CODE END TIM4_Init 1 */
   htim4.Instance = TIM4;
-  htim4.Init.Prescaler = 16000;
+  htim4.Init.Prescaler = 1600;
   htim4.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim4.Init.Period = 30;
+  htim4.Init.Period = 100;
   htim4.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim4.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim4) != HAL_OK)
@@ -1265,7 +1281,7 @@ static void MX_TIM4_Init(void)
     Error_Handler();
   }
   sConfigOC.OCMode = TIM_OCMODE_PWM1;
-  sConfigOC.Pulse = 30;
+  sConfigOC.Pulse = 10;
   sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
   sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
   if (HAL_TIM_PWM_ConfigChannel(&htim4, &sConfigOC, TIM_CHANNEL_2) != HAL_OK)
@@ -1380,7 +1396,7 @@ static void MX_TIM10_Init(void)
   htim10.Instance = TIM10;
   htim10.Init.Prescaler = 16000;
   htim10.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim10.Init.Period = 2000;
+  htim10.Init.Period = 800;
   htim10.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim10.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim10) != HAL_OK)
@@ -1528,8 +1544,10 @@ void maquinaEstados (void){
 	}
 	case apagarMotor:{
 		  HAL_GPIO_WritePin(enable_GPIO_Port, enable_Pin, GPIO_PIN_SET);
+		  HAL_TIM_PWM_Stop(&htim4,TIM_CHANNEL_2);
 		  HAL_TIM_Base_Stop_IT(&htim10);
 		  fsm.estado = IDLE;
+		  break;
 	}
 	case Blinky:{
     	HAL_GPIO_TogglePin(blinky_GPIO_Port, blinky_Pin);
@@ -1630,12 +1648,14 @@ void acciones1 (void){
 	case 3:{
 		  HAL_GPIO_WritePin(DIR_GPIO_Port, DIR_Pin, GPIO_PIN_SET);
 		  HAL_GPIO_WritePin(enable_GPIO_Port, enable_Pin, GPIO_PIN_RESET);
+		  HAL_TIM_PWM_Start(&htim4,TIM_CHANNEL_2);
 		  HAL_TIM_Base_Start_IT(&htim10);
 		  break;
 	}
 	case 4:{
 		  HAL_GPIO_WritePin(DIR_GPIO_Port, DIR_Pin, GPIO_PIN_RESET);
 		  HAL_GPIO_WritePin(enable_GPIO_Port, enable_Pin, GPIO_PIN_RESET);
+		  HAL_TIM_PWM_Start(&htim4,TIM_CHANNEL_2);
 		  HAL_TIM_Base_Start_IT(&htim10);
 		  break;
 	}
@@ -1645,10 +1665,24 @@ void acciones1 (void){
 		  ssd1306_UpdateScreen();
 		break;
 	}
+	case 8:{
+		  HAL_GPIO_WritePin(DIR_GPIO_Port, DIR_Pin, GPIO_PIN_SET);
+		  HAL_GPIO_WritePin(enable_GPIO_Port, enable_Pin, GPIO_PIN_RESET);
+		  HAL_TIM_PWM_Start(&htim4,TIM_CHANNEL_2);
+		  HAL_TIM_Base_Start_IT(&htim10);
+		break;
+	}
 	case 9:{
 		  ssd1306_Fill(Black);
 		  ssd1306_DrawBitmap(0,0,medioTriste,128,64,White);
 		  ssd1306_UpdateScreen();
+		break;
+	}
+	case 12:{
+		  HAL_GPIO_WritePin(DIR_GPIO_Port, DIR_Pin, GPIO_PIN_RESET);
+		  HAL_GPIO_WritePin(enable_GPIO_Port, enable_Pin, GPIO_PIN_RESET);
+		  HAL_TIM_PWM_Start(&htim4,TIM_CHANNEL_2);
+		  HAL_TIM_Base_Start_IT(&htim10);
 		break;
 	}
 	case 13:{
@@ -1669,10 +1703,18 @@ void acciones1 (void){
 		  ssd1306_UpdateScreen();
 		break;
 	}
+	case 21:{
+		  HAL_GPIO_WritePin(DIR_GPIO_Port, DIR_Pin, GPIO_PIN_SET);
+		  HAL_GPIO_WritePin(enable_GPIO_Port, enable_Pin, GPIO_PIN_RESET);
+		  HAL_TIM_PWM_Start(&htim4,TIM_CHANNEL_2);
+		  HAL_TIM_Base_Start_IT(&htim10);
+		  break;
+	}
 	case 24:{
 		HAL_TIM_Base_Stop_IT(&htim3);
 		contador =0;
 		mostrar_menu();
+		break;
 	}
 	default:{
 		__NOP();
@@ -1689,18 +1731,38 @@ void acciones2 (void){
 		  ssd1306_UpdateScreen();
 		break;
 	}
+	case 3:{
+		  HAL_GPIO_TogglePin(DIR_GPIO_Port, DIR_Pin);
+		  HAL_GPIO_WritePin(enable_GPIO_Port, enable_Pin, GPIO_PIN_RESET);
+		  HAL_TIM_PWM_Start(&htim4,TIM_CHANNEL_2);
+		  HAL_TIM_Base_Start_IT(&htim10);
+		break;
+	}
 	case 5:{
 		  ssd1306_Fill(Black);
 		  ssd1306_DrawBitmap(0,0,enamoradito,128,64,White);
 		  ssd1306_UpdateScreen();
 		  break;
 	}
+	case 7:{
+		  HAL_GPIO_TogglePin(DIR_GPIO_Port, DIR_Pin);
+		  HAL_GPIO_WritePin(enable_GPIO_Port, enable_Pin, GPIO_PIN_RESET);
+		  HAL_TIM_PWM_Start(&htim4,TIM_CHANNEL_2);
+		  HAL_TIM_Base_Start_IT(&htim10);
+		break;
+	}
 	case 9:{
 		  ssd1306_Fill(Black);
 		  ssd1306_DrawBitmap(0,0,emocionado,128,64,White);
 		  ssd1306_UpdateScreen();
 		  break;
-	break;
+	}
+	case 12:{
+		  HAL_GPIO_TogglePin(DIR_GPIO_Port, DIR_Pin);
+		  HAL_GPIO_WritePin(enable_GPIO_Port, enable_Pin, GPIO_PIN_RESET);
+		  HAL_TIM_PWM_Start(&htim4,TIM_CHANNEL_2);
+		  HAL_TIM_Base_Start_IT(&htim10);
+		break;
 	}
 	case 13:{
 		  ssd1306_Fill(Black);
@@ -1730,6 +1792,26 @@ void acciones3 (void){
 		  ssd1306_UpdateScreen();
 		break;
 	}
+	case 3:{
+		  ssd1306_Fill(Black);
+		  ssd1306_DrawBitmap(0,0,enojado,128,64,White);
+		  ssd1306_UpdateScreen();
+		break;
+	}
+	case 6:{
+		  HAL_GPIO_TogglePin(DIR_GPIO_Port, DIR_Pin);
+		  HAL_GPIO_WritePin(enable_GPIO_Port, enable_Pin, GPIO_PIN_RESET);
+		  HAL_TIM_PWM_Start(&htim4,TIM_CHANNEL_2);
+		  HAL_TIM_Base_Start_IT(&htim10);
+		break;
+	}
+	case 8:{
+		  HAL_GPIO_TogglePin(DIR_GPIO_Port, DIR_Pin);
+		  HAL_GPIO_WritePin(enable_GPIO_Port, enable_Pin, GPIO_PIN_RESET);
+		  HAL_TIM_PWM_Start(&htim4,TIM_CHANNEL_2);
+		  HAL_TIM_Base_Start_IT(&htim10);
+		break;
+	}
 	case 10:{
 		  ssd1306_Fill(Black);
 		  ssd1306_DrawBitmap(0,0,desesperado,128,64,White);
@@ -1742,10 +1824,24 @@ void acciones3 (void){
 		  ssd1306_UpdateScreen();
 		break;
 	}
+	case 13:{
+		  HAL_GPIO_TogglePin(DIR_GPIO_Port, DIR_Pin);
+		  HAL_GPIO_WritePin(enable_GPIO_Port, enable_Pin, GPIO_PIN_RESET);
+		  HAL_TIM_PWM_Start(&htim4,TIM_CHANNEL_2);
+		  HAL_TIM_Base_Start_IT(&htim10);
+		break;
+	}
 	case 15:{
 		  ssd1306_Fill(Black);
 		  ssd1306_DrawBitmap(0,0,enamoradito,128,64,White);
 		  ssd1306_UpdateScreen();
+		break;
+	}
+	case 18:{
+		  HAL_GPIO_TogglePin(DIR_GPIO_Port, DIR_Pin);
+		  HAL_GPIO_WritePin(enable_GPIO_Port, enable_Pin, GPIO_PIN_RESET);
+		  HAL_TIM_PWM_Start(&htim4,TIM_CHANNEL_2);
+		  HAL_TIM_Base_Start_IT(&htim10);
 		break;
 	}
 	case 21:{
@@ -1758,6 +1854,13 @@ void acciones3 (void){
 		  ssd1306_Fill(Black);
 		  ssd1306_DrawBitmap(0,0,oye,128,64,White);
 		  ssd1306_UpdateScreen();
+		break;
+	}
+	case 25:{
+		  HAL_GPIO_TogglePin(DIR_GPIO_Port, DIR_Pin);
+		  HAL_GPIO_WritePin(enable_GPIO_Port, enable_Pin, GPIO_PIN_RESET);
+		  HAL_TIM_PWM_Start(&htim4,TIM_CHANNEL_2);
+		  HAL_TIM_Base_Start_IT(&htim10);
 		break;
 	}
 	case 28:{
@@ -1778,10 +1881,24 @@ void acciones3 (void){
 		  ssd1306_UpdateScreen();
 		break;
 	}
+	case 34:{
+		  HAL_GPIO_TogglePin(DIR_GPIO_Port, DIR_Pin);
+		  HAL_GPIO_WritePin(enable_GPIO_Port, enable_Pin, GPIO_PIN_RESET);
+		  HAL_TIM_PWM_Start(&htim4,TIM_CHANNEL_2);
+		  HAL_TIM_Base_Start_IT(&htim10);
+		break;
+	}
 	case 36:{
 		  ssd1306_Fill(Black);
 		  ssd1306_DrawBitmap(0,0,triste,128,64,White);
 		  ssd1306_UpdateScreen();
+		break;
+	}
+	case 39:{
+		  HAL_GPIO_TogglePin(DIR_GPIO_Port, DIR_Pin);
+		  HAL_GPIO_WritePin(enable_GPIO_Port, enable_Pin, GPIO_PIN_RESET);
+		  HAL_TIM_PWM_Start(&htim4,TIM_CHANNEL_2);
+		  HAL_TIM_Base_Start_IT(&htim10);
 		break;
 	}
 	case 42:{
@@ -1834,6 +1951,7 @@ void queComienceElShow (void){
 	}
 	default:{
 		__NOP();
+		break;
 	}
 	}
 }
@@ -1845,7 +1963,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 	}
 	else if (GPIO_Pin == GPIO_PIN_5){
 		//Apagamos el enable
-		HAL_GPIO_WritePin(enable_GPIO_Port, enable_Pin, GPIO_PIN_SET);
+		fsm.estado = apagarMotor;
 	}
 	else if (GPIO_Pin == GPIO_PIN_6){
 		fsm.estado = reproducirAudio;
@@ -1853,7 +1971,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin){
 	}
 	else if (GPIO_Pin == GPIO_PIN_7){
 		//Apagamos el enable
-		HAL_GPIO_WritePin(enable_GPIO_Port, enable_Pin, GPIO_PIN_SET);
+		fsm.estado = apagarMotor;
 	}
 }
 //Llamamos el callback para el blinky
